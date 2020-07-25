@@ -46,6 +46,7 @@ public:
   enum ArchType {
     UnknownArch,
 
+    a64,            // Stripped down AArch64.
     arm,            // ARM (little endian): arm, armv.*, xscale
     armeb,          // ARM (big endian): armeb
     aarch64,        // AArch64 (little endian): aarch64

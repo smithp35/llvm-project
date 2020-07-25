@@ -24,6 +24,7 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
   switch (Kind) {
   case UnknownArch:    return "unknown";
 
+  case a64:            return "a64";
   case aarch64:        return "aarch64";
   case aarch64_32:     return "aarch64_32";
   case aarch64_be:     return "aarch64_be";
@@ -92,6 +93,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
   switch (Kind) {
   default:
     return StringRef();
+
+  case a64:         return "a64";
 
   case aarch64:
   case aarch64_be:
@@ -307,6 +310,7 @@ static Triple::ArchType parseBPFArch(StringRef ArchName) {
 Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
   Triple::ArchType BPFArch(parseBPFArch(Name));
   return StringSwitch<Triple::ArchType>(Name)
+    .Case("a64", a64)
     .Case("aarch64", aarch64)
     .Case("aarch64_be", aarch64_be)
     .Case("aarch64_32", aarch64_32)
@@ -451,6 +455,7 @@ static Triple::ArchType parseArch(StringRef ArchName) {
     .Cases("powerpc64le", "ppc64le", Triple::ppc64le)
     .Case("xscale", Triple::arm)
     .Case("xscaleeb", Triple::armeb)
+    .Case("a64", Triple::a64)
     .Case("aarch64", Triple::aarch64)
     .Case("aarch64_be", Triple::aarch64_be)
     .Case("aarch64_32", Triple::aarch64_32)
@@ -777,6 +782,8 @@ static StringRef getObjectFormatTypeName(Triple::ObjectFormatType Kind) {
 
 static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
   switch (T.getArch()) {
+  case Triple::a64:
+    return Triple::ELF;
   case Triple::UnknownArch:
   case Triple::aarch64:
   case Triple::aarch64_32:
@@ -1413,6 +1420,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
   case llvm::Triple::xcore:
     return 32;
 
+  case llvm::Triple::a64:
   case llvm::Triple::aarch64:
   case llvm::Triple::aarch64_be:
   case llvm::Triple::amdgcn:
@@ -1457,6 +1465,7 @@ Triple Triple::get32BitArchVariant() const {
   Triple T(*this);
   switch (getArch()) {
   case Triple::UnknownArch:
+  case Triple::a64:
   case Triple::amdgcn:
   case Triple::avr:
   case Triple::bpfeb:
@@ -1554,6 +1563,7 @@ Triple Triple::get64BitArchVariant() const {
     T.setArch(UnknownArch);
     break;
 
+  case Triple::a64:
   case Triple::aarch64:
   case Triple::aarch64_be:
   case Triple::amdgcn:
