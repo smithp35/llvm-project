@@ -51,6 +51,7 @@ def uimm12 : Operand<i32>, ImmLeaf<i32, [{
 //def MOVWi : DataProcessingImm<0b101, (outs GPR$rd), (ins simm16$imm16),
 //                              "mov", "$rd, $imm16">, Sched<[]>
 
+/// Arm ARM Add/subtract (immediate)
 
 class AddSubImmGen<string opstr, bits<1> op, bits<1> S>
     : DataProcessingImm<0b010,
@@ -81,14 +82,16 @@ class AddSubImm<string opstr, bits<1> op>
 }
 
 // Non flag setting
-def ADDI : AddSubImm<"add", 0>;
-def SUBI : AddSubImm<"sub", 1>;
+def ADDi : AddSubImm<"add", 0>;
+def SUBi : AddSubImm<"sub", 1>;
 
 // Flag setting
-def ADDIS : AddSubImmS<"adds", 0>;
-def SUBIS : AddSubImmS<"subs", 1>;
+def ADDSi : AddSubImmS<"adds", 0>;
+def SUBSi : AddSubImmS<"subs", 1>;
 
-// Simplified, we don't support shifted or extended registers
+/// Arm ARM Data Add/subtract (shifted register)
+
+// Simplified, we don't support shifted registers
 class AddSubRegGen <string opstr, bits<1> op, bits<1> S>
     : DataProcessingReg<op, 0b0, 0b1000, 0b000000,
                         (outs GPR64sp:$rd),
@@ -97,7 +100,6 @@ class AddSubRegGen <string opstr, bits<1> op, bits<1> S>
     bits<5>  rn;
     bits<5>  rd;
     bits<5>  rm;
-    let Inst{30} = op;
     let Inst{29} = S;
     let Inst{23-22} = 0b00; // hard code shift to 0
     let Inst{20-16} = rm;
@@ -117,9 +119,49 @@ class AddSubReg<string opstr, bits<1> op>
     : AddSubRegGen<opstr, op, 0b0> {
 }
 
-def ADDR : AddSubReg<"add", 0>;
-def SUBR : AddSubReg<"sub", 1>;
+def ADDr : AddSubReg<"add", 0>;
+def SUBr : AddSubReg<"sub", 1>;
 
 // Flag setting
-def ADDRS : AddSubRegS<"adds", 0>;
-def SUBRS : AddSubRegS<"subs", 1>;
+def ADDSr : AddSubRegS<"adds", 0>;
+def SUBSr : AddSubRegS<"subs", 1>;
+
+/// Arm ARM Logical (shifted register)
+
+// Simplified, we don't support shifted registers
+class LogicalRegGen <string opstr, bits<2> opc, bits<1> N>
+    : DataProcessingReg<opc{1}, 0b0, {0b000, N}, 0b000000,
+                        (outs GPR64sp:$rd),
+                        (ins GPR64sp:$rn, GPR64sp:$rm),
+                        !strconcat(opstr, " $rd, $rn, $rm"), []> {
+    bits<5>  rn;
+    bits<5>  rd;
+    bits<5>  rm;
+    let Inst{29} = opc{0};
+    let Inst{23-22} = 0b00; // hard code shift to 0
+    let Inst{20-16} = rm;
+    let Inst{9-5} = rn;
+    let Inst{4-0} = rd;
+}
+
+// Non flag setting
+class LogicalReg<string opstr, bits<2> opc, bits<1> N>
+    : LogicalRegGen <opstr, opc, N> {
+}
+
+def ANDr : LogicalReg<"and", 0b00, 0b0>;
+def BICr : LogicalReg<"bic", 0b00, 0b1>;
+def ORRr : LogicalReg<"orr", 0b01, 0b0>;
+def ORNr : LogicalReg<"orn", 0b01, 0b1>;
+def EORr : LogicalReg<"eor", 0b10, 0b0>;
+def EONr : LogicalReg<"eon", 0b10, 0b1>;
+
+// Flag setting
+class LogicalRegS<string opstr, bits<2> opc, bits<1> N>
+    : LogicalRegGen <opstr, opc, N> {
+    let isCompare = 1;
+    let Defs = [NZCV];
+}
+
+def ANDSr : LogicalReg<"ands", 0b11, 0b0>;
+def BICSr : LogicalReg<"bics", 0b11, 0b1>;
