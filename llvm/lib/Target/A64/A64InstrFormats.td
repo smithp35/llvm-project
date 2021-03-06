@@ -49,6 +49,20 @@ class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
     let Inst{15-10} = op3;
 }
 
+class DataProcessingReg3 <bits<2> op54, bits<3> op31, bits<1> o0,
+                          dag outs, dag ins, string asmstr,
+                          list<dag> pattern>
+    : A64Inst<outs, ins, asmstr, pattern> {
+    let hasSideEffects = 0;
+    let mayLoad = 0;
+    let mayStore = 0;
+    let Inst{31} = 0b1;
+    let Inst{30-29} = op54;
+    let Inst{28-24} = 0b11011;
+    let Inst{23-21} = op31;
+    let Inst{15} = o0;
+}
+
 class DataProcessingImm <bits<3> opcode, dag outs, dag ins, string asmstr,
                          list<dag> pattern>
     : A64Inst<outs, ins, asmstr, pattern> {

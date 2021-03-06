@@ -165,3 +165,40 @@ class LogicalRegS<string opstr, bits<2> opc, bits<1> N>
 
 def ANDSr : LogicalReg<"ands", 0b11, 0b0>;
 def BICSr : LogicalReg<"bics", 0b11, 0b1>;
+
+/// Multiply only register-register
+
+class MultiplyAccSub <string opstr, bits<1> o0>
+    : DataProcessingReg3<0b00, 0b000, o0,
+                         (outs GPR64sp:$rd),
+                         (ins GPR64sp:$rm, GPR64sp:$ra, GPR64sp:$rn),
+                         !strconcat(opstr, " $rd, $rn, $rm, $ra"), []> {
+    bits<5> rm;
+    bits<5> ra;
+    bits<5> rn;
+    bits<5> rd;
+    let Inst{20-16} = rm;
+    let Inst{15} = o0;
+    let Inst{14-10} = ra;
+    let Inst{9-5} = rn;
+    let Inst{4-0} = rd;
+}
+
+def MADD : MultiplyAccSub <"madd", 0>;
+def MSUB : MultiplyAccSub <"msub", 1>;
+
+// Mul is an alias of MADD it may be possible to refactor to make this
+// an alias in tablegen.
+class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
+                               (outs GPR64sp:$rd),
+                               (ins GPR64sp:$rn, GPR64sp:$rm),
+                               "mul $rd, $rn, $rm", []> {
+    bits<5> rm;
+    bits<5> rn;
+    bits<5> rd;
+    let Inst{20-16} = rm;
+    let Inst{9-5} = rn;
+    let Inst{4-0} = rd;
+}
+
+def mull : Mulc;
