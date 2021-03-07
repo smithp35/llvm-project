@@ -145,16 +145,13 @@ class LogicalRegGen <string opstr, bits<2> opc, bits<1> N>
 }
 
 // Non flag setting
-class LogicalReg<string opstr, bits<2> opc, bits<1> N>
-    : LogicalRegGen <opstr, opc, N> {
-}
 
-def ANDr : LogicalReg<"and", 0b00, 0b0>;
-def BICr : LogicalReg<"bic", 0b00, 0b1>;
-def ORRr : LogicalReg<"orr", 0b01, 0b0>;
-def ORNr : LogicalReg<"orn", 0b01, 0b1>;
-def EORr : LogicalReg<"eor", 0b10, 0b0>;
-def EONr : LogicalReg<"eon", 0b10, 0b1>;
+def ANDr : LogicalRegGen<"and", 0b00, 0b0>;
+def BICr : LogicalRegGen<"bic", 0b00, 0b1>;
+def ORRr : LogicalRegGen<"orr", 0b01, 0b0>;
+def ORNr : LogicalRegGen<"orn", 0b01, 0b1>;
+def EORr : LogicalRegGen<"eor", 0b10, 0b0>;
+def EONr : LogicalRegGen<"eon", 0b10, 0b1>;
 
 // Flag setting
 class LogicalRegS<string opstr, bits<2> opc, bits<1> N>
@@ -163,8 +160,27 @@ class LogicalRegS<string opstr, bits<2> opc, bits<1> N>
     let Defs = [NZCV];
 }
 
-def ANDSr : LogicalReg<"ands", 0b11, 0b0>;
-def BICSr : LogicalReg<"bics", 0b11, 0b1>;
+def ANDSr : LogicalRegS<"ands", 0b11, 0b0>;
+def BICSr : LogicalRegS<"bics", 0b11, 0b1>;
+
+// FIXME this is an alias of ORR with shifted register
+class MovGen
+    : DataProcessingReg<0b0, 0b0, 0b0000, 0b000000,
+                        (outs GPR64sp:$rd),
+                        (ins GPR64sp:$rm),
+                        "mov $rd, $rm", []> {
+    bits<5>  rd;
+    bits<5>  rm;
+    let Inst{29} = 0b1;
+    let Inst{23-22} = 0b00; // hard code shift to 0
+    let Inst{21} = 0b0;
+    let Inst{20-16} = rm;
+    let Inst{9-5} = 0b11111;
+    let Inst{4-0} = rd;
+}
+
+def MovRR : MovGen;
+
 
 /// Multiply only register-register
 
