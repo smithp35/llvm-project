@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+#include "MCTargetDesc/A64AddressingModes.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "MCTargetDesc/A64TargetStreamer.h"
 #include "TargetInfo/A64TargetInfo.h"
@@ -79,6 +80,7 @@ public:
   bool parseRegister(OperandVector &Operands);
   OperandMatchResultTy tryParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                                         SMLoc &EndLoc) override;
+  OperandMatchResultTy tryParseOptionalShiftExtend(OperandVector &Operands);
   bool ParseDirective(AsmToken DirectiveID) override;
 };
 
@@ -88,6 +90,7 @@ private:
   enum KindTy {
     k_Immediate,
     k_Register,
+    k_ShiftExtend,
     k_Token,
   } Kind;
 
@@ -97,8 +100,31 @@ private:
     bool IsSuffix; // Is the operand actually a suffix on the mnemonic.
   };
 
+  // Separate shift/extend operand.
+  struct ShiftExtendOp {
+    A64_AM::ShiftExtendType Type;
+    unsigned Amount;
+    bool HasExplicitAmount;
+  };
+
   struct RegOp {
     unsigned RegNum;
+
+    // In some cases the shift/extend needs to be explicitly parsed together
+    // with the register, rather than as a separate operand. This is needed
+    // for addressing modes where the instruction as a whole dictates the
+    // scaling/extend, rather than specific bits in the instruction.
+    // By parsing them as a single operand, we avoid the need to pass an
+    // extra operand in all CodeGen patterns (because all operands need to
+    // have an associated value), and we avoid the need to update TableGen to
+    // accept operands that have no associated bits in the instruction.
+    //
+    // An added benefit of parsing them together is that the assembler
+    // can give a sensible diagnostic if the scaling is not correct.
+    //
+    // The default is 'lsl #0' (HasExplicitAmount = false) if no
+    // ShiftExtend is specified.
+    ShiftExtendOp ShiftExtend;
   };
 
   struct ImmOp {
@@ -109,17 +135,90 @@ private:
     struct TokOp Tok;
     struct RegOp Reg;
     struct ImmOp Imm;
+    struct ShiftExtendOp ShiftExtend;
   };
 
   SMLoc StartLoc, EndLoc;
 
 public:
   A64Operand(KindTy K, MCContext &Ctx) : Kind(K) {}
+  A64Operand(const A64Operand &o) : MCParsedAsmOperand() {
+    Kind = o.Kind;
+    StartLoc = o.StartLoc;
+    EndLoc = o.EndLoc;
+    switch (Kind) {
+    case k_Token:
+      Tok = o.Tok;
+      break;
+    case k_Immediate:
+      Imm = o.Imm;
+      break;
+    case k_Register:
+      Reg = o.Reg;
+      break;
+    case k_ShiftExtend:
+      ShiftExtend = o.ShiftExtend;
+      break;
+    }
+  }
+
+  A64_AM::ShiftExtendType getShiftExtendType() const {
+    if (Kind == k_ShiftExtend)
+      return ShiftExtend.Type;
+    if (Kind == k_Register)
+      return Reg.ShiftExtend.Type;
+    llvm_unreachable("Invalid access!");
+  }
+
+  unsigned getShiftExtendAmount() const {
+    if (Kind == k_ShiftExtend)
+      return ShiftExtend.Amount;
+    if (Kind == k_Register)
+      return Reg.ShiftExtend.Amount;
+    llvm_unreachable("Invalid access!");
+  }
+
+  bool hasShiftExtendAmount() const {
+    if (Kind == k_ShiftExtend)
+      return ShiftExtend.HasExplicitAmount;
+    if (Kind == k_Register)
+      return Reg.ShiftExtend.HasExplicitAmount;
+    llvm_unreachable("Invalid access!");
+  }
 
   bool isToken() const override { return Kind == KindTy::k_Token; }
   bool isImm() const override { return Kind == KindTy::k_Immediate; }
   bool isReg() const override { return Kind == KindTy::k_Register; }
   bool isMem() const override { return false; }
+  bool isShiftExtend() const { return Kind == k_ShiftExtend; }
+  bool isShifter() const {
+    if (!isShiftExtend())
+      return false;
+
+    A64_AM::ShiftExtendType ST = getShiftExtendType();
+    return (ST == A64_AM::LSL || ST == A64_AM::LSR || ST == A64_AM::ASR ||
+            ST == A64_AM::ROR || ST == A64_AM::MSL);
+  }
+  bool isArithmeticShifter() const {
+    if (!isShifter())
+      return false;
+
+    // An arithmetic shifter is LSL, LSR, or ASR.
+    A64_AM::ShiftExtendType ST = getShiftExtendType();
+    return (ST == A64_AM::LSL || ST == A64_AM::LSR || ST == A64_AM::ASR) &&
+           getShiftExtendAmount() < 64;
+  }
+
+  bool isLogicalShifter() const {
+    if (!isShifter())
+      return false;
+
+    // A logical shifter is LSL, LSR, ASR or ROR.
+    A64_AM::ShiftExtendType ST = getShiftExtendType();
+    return (ST == A64_AM::LSL || ST == A64_AM::LSR || ST == A64_AM::ASR ||
+            ST == A64_AM::ROR) &&
+           getShiftExtendAmount() < 64;
+  }
 
   void addRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
@@ -139,6 +238,13 @@ public:
   void addImmOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     addExpr(Inst, getImm());
+  }
+
+  void addShifterOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    unsigned Imm =
+        A64_AM::getShifterImm(getShiftExtendType(), getShiftExtendAmount());
+    Inst.addOperand(MCOperand::createImm(Imm));
   }
 
   unsigned getReg() const override {
@@ -169,6 +275,15 @@ public:
     case KindTy::k_Register:
       OS << "<register x";
       OS << getReg() << ">";
+      if (!getShiftExtendAmount() && !hasShiftExtendAmount())
+        break;
+      LLVM_FALLTHROUGH;
+    case k_ShiftExtend:
+      OS << "<" << A64_AM::getShiftExtendName(getShiftExtendType()) << " #"
+         << getShiftExtendAmount();
+      if (!hasShiftExtendAmount())
+        OS << "<imp>";
+      OS << '>';
       break;
     case KindTy::k_Token:
       OS << "'" << getToken() << "'";
@@ -196,10 +311,36 @@ public:
     return Op;
   }
 
-  static std::unique_ptr<A64Operand> createReg(unsigned RegNum, SMLoc S,
-                                               SMLoc E, MCContext &Ctx) {
+  static std::unique_ptr<A64Operand>
+  createReg(unsigned RegNum, SMLoc S, SMLoc E, MCContext &Ctx,
+            A64_AM::ShiftExtendType ExtTy = A64_AM::LSL,
+            unsigned ShiftAmount = 0, unsigned HasExplicitAmount = false) {
     auto Op = std::make_unique<A64Operand>(k_Register, Ctx);
     Op->Reg.RegNum = RegNum;
+    Op->Reg.ShiftExtend.Type = ExtTy;
+    Op->Reg.ShiftExtend.Amount = ShiftAmount;
+    Op->Reg.ShiftExtend.HasExplicitAmount = HasExplicitAmount;
+    Op->StartLoc = S;
+    Op->EndLoc = E;
+    return Op;
+  }
+
+  static std::unique_ptr<A64Operand>
+  CreateShiftExtend(A64_AM::ShiftExtendType ShOp, unsigned Val,
+                    bool HasExplicitAmount, SMLoc S, SMLoc E, MCContext &Ctx) {
+    auto Op = std::make_unique<A64Operand>(k_ShiftExtend, Ctx);
+    Op->ShiftExtend.Type = ShOp;
+    Op->ShiftExtend.Amount = Val;
+    Op->ShiftExtend.HasExplicitAmount = HasExplicitAmount;
+    Op->StartLoc = S;
+    Op->EndLoc = E;
+    return Op;
+  }
+
+  static std::unique_ptr<A64Operand> CreateImm(const MCExpr *Val, SMLoc S,
+                                               SMLoc E, MCContext &Ctx) {
+    auto Op = std::make_unique<A64Operand>(k_Immediate, Ctx);
+    Op->Imm.Val = Val;
     Op->StartLoc = S;
     Op->EndLoc = E;
     return Op;
@@ -249,14 +390,13 @@ bool A64AsmParser::parseRegister(OperandVector &Operands) {
 bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   // Check if the current operand has a custom associated parser, if so, try to
   // custom parse the operand, or fallback to the general approach.
-  //  OperandMatchResultTy Result =
-  //    MatchOperandParserImpl(Operands, Mnemonic,
-  //    /*ParseForAllFeatures=*/true);
+  // OperandMatchResultTy Result =
+  //     MatchOperandParserImpl(Operands, Mnemonic,
+  //     /*ParseForAllFeatures=*/true);
   // if (Result == MatchOperand_Success)
   //   return false;
   // if (Result == MatchOperand_ParseFail)
   //   return true;
-
   // Nothing custom, so do general case parsing.
   SMLoc S, E;
   switch (getLexer().getKind()) {
@@ -268,8 +408,21 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     if (parseRegister(Operands) == MatchOperand_Success)
       return false;
 
-    // ToDo optional shift.
-    return Error(S, "A64AsmParser failed to parse register as identifier");
+    // This could be an optional "shift" or "extend" operand.
+    OperandMatchResultTy GotShift = tryParseOptionalShiftExtend(Operands);
+    // We can only continue if no tokens were eaten.
+    if (GotShift != MatchOperand_NoMatch)
+      return GotShift;
+
+    // This was not a register so parse other operands that start with an
+    // identifier (like labels) as expressions and create them as immediates.
+    const MCExpr *IdVal;
+    S = getLoc();
+    if (getParser().parseExpression(IdVal))
+      return true;
+    E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
+    Operands.push_back(A64Operand::CreateImm(IdVal, S, E, getContext()));
+    return false;
   }
   case AsmToken::Integer:
   case AsmToken::Hash: {
@@ -357,6 +510,78 @@ OperandMatchResultTy A64AsmParser::tryParseRegister(unsigned &RegNo,
   return MatchOperand_NoMatch;
 }
 
+/// tryParseOptionalShift - Some operands take an optional shift argument. Parse
+/// them if present.
+OperandMatchResultTy
+A64AsmParser::tryParseOptionalShiftExtend(OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+  const AsmToken &Tok = Parser.getTok();
+  std::string LowerID = Tok.getString().lower();
+  A64_AM::ShiftExtendType ShOp = StringSwitch<A64_AM::ShiftExtendType>(LowerID)
+                                     .Case("lsl", A64_AM::LSL)
+                                     .Case("lsr", A64_AM::LSR)
+                                     .Case("asr", A64_AM::ASR)
+                                     .Case("ror", A64_AM::ROR)
+                                     .Case("msl", A64_AM::MSL)
+                                     .Case("uxtb", A64_AM::UXTB)
+                                     .Case("uxth", A64_AM::UXTH)
+                                     .Case("uxtw", A64_AM::UXTW)
+                                     .Case("uxtx", A64_AM::UXTX)
+                                     .Case("sxtb", A64_AM::SXTB)
+                                     .Case("sxth", A64_AM::SXTH)
+                                     .Case("sxtw", A64_AM::SXTW)
+                                     .Case("sxtx", A64_AM::SXTX)
+                                     .Default(A64_AM::InvalidShiftExtend);
+
+  if (ShOp == A64_AM::InvalidShiftExtend)
+    return MatchOperand_NoMatch;
+
+  SMLoc S = Tok.getLoc();
+  Parser.Lex();
+
+  bool Hash = parseOptionalToken(AsmToken::Hash);
+
+  if (!Hash && getLexer().isNot(AsmToken::Integer)) {
+    if (ShOp == A64_AM::LSL || ShOp == A64_AM::LSR || ShOp == A64_AM::ASR ||
+        ShOp == A64_AM::ROR || ShOp == A64_AM::MSL) {
+      // We expect a number here.
+      TokError("expected #imm after shift specifier");
+      return MatchOperand_ParseFail;
+    }
+
+    // "extend" type operations don't need an immediate, #0 is implicit.
+    SMLoc E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
+    Operands.push_back(
+        A64Operand::CreateShiftExtend(ShOp, 0, false, S, E, getContext()));
+    return MatchOperand_Success;
+  }
+
+  // Make sure we do actually have a number, identifier or a parenthesized
+  // expression.
+  SMLoc E = Parser.getTok().getLoc();
+  if (!Parser.getTok().is(AsmToken::Integer) &&
+      !Parser.getTok().is(AsmToken::LParen) &&
+      !Parser.getTok().is(AsmToken::Identifier)) {
+    Error(E, "expected integer shift amount");
+    return MatchOperand_ParseFail;
+  }
+
+  const MCExpr *ImmVal;
+  if (getParser().parseExpression(ImmVal))
+    return MatchOperand_ParseFail;
+
+  const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(ImmVal);
+  if (!MCE) {
+    Error(E, "expected constant '#imm' after shift specifier");
+    return MatchOperand_ParseFail;
+  }
+
+  E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
+  Operands.push_back(A64Operand::CreateShiftExtend(ShOp, MCE->getValue(), true,
+                                                   S, E, getContext()));
+  return MatchOperand_Success;
+}
+
 bool A64AsmParser::ParseDirective(AsmToken DirectiveID) { return true; }
 
 bool A64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
@@ -378,7 +603,7 @@ bool A64AsmParser::MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
 
     if (ErrorInfo != ~0ULL) {
       if (ErrorInfo >= Operands.size())
-        return Error(IDLoc, "too few operands for instruction",
+        return Error(IDLoc, "A64 too few operands for instruction",
                      SMRange(IDLoc, getTok().getLoc()));
 
       ErrorLoc = ((A64Operand &)*Operands[ErrorInfo]).getStartLoc();

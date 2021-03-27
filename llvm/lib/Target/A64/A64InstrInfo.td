@@ -89,79 +89,25 @@ def SUBi : AddSubImm<"sub", 1>;
 def ADDSi : AddSubImmS<"adds", 0>;
 def SUBSi : AddSubImmS<"subs", 1>;
 
-/// Arm ARM Data Add/subtract (shifted register)
-
-// Simplified, we don't support shifted registers
-class AddSubRegGen <string opstr, bits<1> op, bits<1> S>
-    : DataProcessingReg<op, 0b0, 0b1000, 0b000000,
-                        (outs GPR64sp:$rd),
-                        (ins GPR64sp:$rn, GPR64sp:$rm),
-                        !strconcat(opstr, " $rd, $rn, $rm"), []> {
-    bits<5>  rn;
-    bits<5>  rd;
-    bits<5>  rm;
-    let Inst{29} = S;
-    let Inst{23-22} = 0b00; // hard code shift to 0
-    let Inst{20-16} = rm;
-    let Inst{9-5} = rn;
-    let Inst{4-0} = rd;
-}
-
-// Flag setting
-class AddSubRegS<string opstr, bits<1> op>
-    : AddSubRegGen<opstr, op, 0b1> {
-    let isCompare = 1;
-    let Defs = [NZCV];
-}
-
-// Non flag setting
-class AddSubReg<string opstr, bits<1> op>
-    : AddSubRegGen<opstr, op, 0b0> {
-}
-
-def ADDr : AddSubReg<"add", 0>;
-def SUBr : AddSubReg<"sub", 1>;
-
-// Flag setting
-def ADDSr : AddSubRegS<"adds", 0>;
-def SUBSr : AddSubRegS<"subs", 1>;
+defm ADD : AddSubRegGen2<"add", 0>;
+defm SUB : AddSubRegGen2<"sub", 1>;
+defm ADDS : AddSubRegGen2S<"adds", 0>;
+defm SUBS : AddSubRegGen2S<"subs", 1>;
 
 /// Arm ARM Logical (shifted register)
 
-// Simplified, we don't support shifted registers
-class LogicalRegGen <string opstr, bits<2> opc, bits<1> N>
-    : DataProcessingReg<opc{1}, 0b0, {0b000, N}, 0b000000,
-                        (outs GPR64sp:$rd),
-                        (ins GPR64sp:$rn, GPR64sp:$rm),
-                        !strconcat(opstr, " $rd, $rn, $rm"), []> {
-    bits<5>  rn;
-    bits<5>  rd;
-    bits<5>  rm;
-    let Inst{29} = opc{0};
-    let Inst{23-22} = 0b00; // hard code shift to 0
-    let Inst{20-16} = rm;
-    let Inst{9-5} = rn;
-    let Inst{4-0} = rd;
-}
-
 // Non flag setting
 
-def ANDr : LogicalRegGen<"and", 0b00, 0b0>;
-def BICr : LogicalRegGen<"bic", 0b00, 0b1>;
-def ORRr : LogicalRegGen<"orr", 0b01, 0b0>;
-def ORNr : LogicalRegGen<"orn", 0b01, 0b1>;
-def EORr : LogicalRegGen<"eor", 0b10, 0b0>;
-def EONr : LogicalRegGen<"eon", 0b10, 0b1>;
+defm ANDr : LogicalRegGen<"and", 0b00, 0b0>;
+defm BICr : LogicalRegGen<"bic", 0b00, 0b1>;
+defm ORRr : LogicalRegGen<"orr", 0b01, 0b0>;
+defm ORNr : LogicalRegGen<"orn", 0b01, 0b1>;
+defm EORr : LogicalRegGen<"eor", 0b10, 0b0>;
+defm EONr : LogicalRegGen<"eon", 0b10, 0b1>;
 
-// Flag setting
-class LogicalRegS<string opstr, bits<2> opc, bits<1> N>
-    : LogicalRegGen <opstr, opc, N> {
-    let isCompare = 1;
-    let Defs = [NZCV];
-}
 
-def ANDSr : LogicalRegS<"ands", 0b11, 0b0>;
-def BICSr : LogicalRegS<"bics", 0b11, 0b1>;
+defm ANDSr : LogicalRegGenS<"ands", 0b11, 0b0>;
+defm BICSr : LogicalRegGenS<"bics", 0b11, 0b1>;
 
 // FIXME this is an alias of ORR with shifted register
 class MovGen

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "A64InstPrinter.h"
+#include "MCTargetDesc/A64AddressingModes.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -67,4 +68,21 @@ void A64InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
 void A64InstPrinter::printImm(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNo);
   O << "#" << formatImm(Op.getImm());
+}
+
+void A64InstPrinter::printShifter(const MCInst *MI, unsigned OpNum,
+                                  raw_ostream &O) {
+  unsigned Val = MI->getOperand(OpNum).getImm();
+  // LSL #0 should not be printed.
+  if (A64_AM::getShiftType(Val) == A64_AM::LSL &&
+      A64_AM::getShiftValue(Val) == 0)
+    return;
+  O << ", " << A64_AM::getShiftExtendName(A64_AM::getShiftType(Val)) << " #"
+    << A64_AM::getShiftValue(Val);
+}
+
+void A64InstPrinter::printShiftedRegister(const MCInst *MI, unsigned OpNum,
+                                          raw_ostream &O) {
+  O << getRegisterName(MI->getOperand(OpNum).getReg());
+  printShifter(MI, OpNum + 1, O);
 }

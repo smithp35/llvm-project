@@ -6,6 +6,75 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Shifter operand for arithmetic shifted encodings.
+def ShifterOperand : AsmOperandClass {
+  let Name = "Shifter";
+}
+
+// Shifter operand for arithmetic register shifted encodings.
+class ArithmeticShifterOperand : AsmOperandClass {
+  let SuperClasses = [ShifterOperand];
+  let Name = "ArithmeticShifter";
+  let PredicateMethod = "isArithmeticShifter";
+  let RenderMethod = "addShifterOperands";
+ let DiagnosticType = "AddSubRegShift";
+}
+
+def ArithmeticShifterOperand64 : ArithmeticShifterOperand;
+
+// Shifter operand for logical register shifted encodings.
+class LogicalShifterOperand : AsmOperandClass {
+  let SuperClasses = [ShifterOperand];
+  let Name = "LogicalShifter";
+  let PredicateMethod = "isLogicalShifter";
+  let RenderMethod = "addShifterOperands";
+  let DiagnosticType = "AddSubRegShift";
+}
+
+def LogicalShifterOperand64 : LogicalShifterOperand;
+
+// An arithmetic shifter operand:
+//  {7-6} - shift type: 00 = lsl, 01 = lsr, 10 = asr
+//  {5-0} - imm6
+class arith_shift : Operand<i64> {
+  let PrintMethod = "printShifter";
+  let ParserMatchClass = !cast<AsmOperandClass>(
+                         "ArithmeticShifterOperand64");
+}
+
+def arith_shift64 : arith_shift;
+
+class arith_shifted_reg<ValueType Ty, RegisterClass regclass>
+    : Operand<Ty>
+      //,ComplexPattern<Ty, 2, "SelectArithShiftedRegister", []>
+      {
+  let PrintMethod = "printShiftedRegister";
+  let MIOperandInfo = (ops regclass, !cast<Operand>("arith_shift64"));
+}
+
+def arith_shifted_reg64 : arith_shifted_reg<i64, GPR64>;
+
+// A logical shifter operand:
+//  {7-6} - shift type: 00 = lsl, 01 = lsr, 10 = asr, 11 = ror
+//  {5-0} - imm6
+class logical_shift : Operand<i32> {
+  let PrintMethod = "printShifter";
+  let ParserMatchClass = !cast<AsmOperandClass>(
+                         "LogicalShifterOperand64");
+}
+
+def logical_shift64 : logical_shift;
+
+class logical_shifted_reg<ValueType Ty, RegisterClass regclass, Operand shiftop>
+    : Operand<Ty>
+      // ,ComplexPattern<Ty, 2, "SelectLogicalShiftedRegister", []>
+      {
+  let PrintMethod = "printShiftedRegister";
+  let MIOperandInfo = (ops regclass, shiftop);
+}
+
+def logical_shifted_reg64 : logical_shifted_reg<i64, GPR64, logical_shift64>;
+
 //===----------------------------------------------------------------------===//
 //  Describe A64 instructions format here
 //
@@ -30,6 +99,87 @@ class A64Inst<dag outs, dag ins, string asmstr, list<dag> pattern>
     let AsmString      = asmstr;
     let Pattern        = pattern;
     let Size           = 4;
+}
+
+class LogicalRegGenBase <string opstr, bits<2> opc, bits<1> N>
+    : A64Inst<(outs GPR64:$rd),
+              (ins GPR64:$rn, logical_shifted_reg64:$rm),
+              !strconcat(opstr, " $rd, $rn, $rm"), []> {
+
+    // Operands in order to match the ins, outs. Names must be different
+    // to use in-order mapping.
+    bits<5>  dst;
+    bits<5>  src1;
+    bits<5>  src2;
+    bits<8>  shift;
+    let Inst{31} = 0b1; // hard code sf = 1
+    let Inst{30-29} = opc;
+    let Inst{28-24} = 0b01010;
+    let Inst{23-22} = shift{7-6};
+    let Inst{21} = N;
+    let Inst{20-16} = src2;
+    let Inst{15-10} = shift{5-0};
+    let Inst{9-5} = src1;
+    let Inst{4-0} = dst;
+}
+
+class LogicalRegAlias<string asm, Instruction inst, RegisterClass regtype>
+    : InstAlias<asm#"\t$dst, $src1, $src2",
+                (inst regtype:$dst, regtype:$src1, regtype:$src2, 0)>;
+
+multiclass LogicalRegGen<string opstr, bits<2> opc, bits<1> N> {
+  def Xrs : LogicalRegGenBase<opstr, opc, N>;
+  def : LogicalRegAlias<opstr,
+        !cast<Instruction>(NAME#"Xrs"), GPR64>;
+}
+
+// Flag Setting Variant of logical register
+multiclass LogicalRegGenS<string opstr, bits<2> opc, bits<1> N> {
+  def Xrs : LogicalRegGenBase<opstr, opc, N> {
+    let Defs = [NZCV];
+  }
+  def : LogicalRegAlias<opstr,
+        !cast<Instruction>(NAME#"Xrs"), GPR64>;
+}
+
+/// Arm ARM Data Add/subtract (shifted register)
+class AddSubRegBase<string opstr, bits<1> op, bits<1> S>
+      : A64Inst<(outs GPR64:$rd),
+                (ins GPR64:$rn, arith_shifted_reg64:$rm),
+                !strconcat(opstr, " $rd, $rn, $rm"), []> {
+    // Operands in order to match the ins, outs. Names must be different
+    // to use in-order mapping.
+    bits<5>  dst;
+    bits<5>  src1;
+    bits<5>  src2;
+    bits<8>  shift;
+    let Inst{31} = 0b1; // hard code sf = 1
+    let Inst{30} = op;
+    let Inst{29} = S;
+    let Inst{28-24} = 0b01011;
+    let Inst{23-22} = shift{7-6};
+    let Inst{21} = 0;
+    let Inst{20-16} = src2;
+    let Inst{15-10} = shift{5-0};
+    let Inst{9-5} = src1;
+    let Inst{4-0} = dst;
+}
+
+class AddSubRegAlias<string asm, Instruction inst, RegisterClass regtype>
+    : InstAlias<asm#"\t$dst, $src1, $src2",
+                (inst regtype:$dst, regtype:$src1, regtype:$src2, 0)>;
+
+multiclass AddSubRegGen2<string opstr, bits<1> op> {
+  def Xrs : AddSubRegBase<opstr, op, 0b0>;
+  def : AddSubRegAlias<opstr, !cast<Instruction>(NAME#"Xrs"), GPR64>;
+}
+
+// Flag Setting Variant of Add Sub register
+multiclass AddSubRegGen2S<string opstr, bits<1> op> {
+  def Xrs : AddSubRegBase<opstr, op, 0b1> {
+    let Defs = [NZCV];
+  }
+  def : AddSubRegAlias<opstr, !cast<Instruction>(NAME#"Xrs"), GPR64>;
 }
 
 // A64 pseudo instructions format
@@ -95,6 +245,3 @@ class Hint <bits<4> CRm, bits<3> op2, dag outs, dag ins, string asmstr,
     let Inst{7-5}   = op2;
     let Inst{4-0}   = 0b11111;
 }
-
-
-
