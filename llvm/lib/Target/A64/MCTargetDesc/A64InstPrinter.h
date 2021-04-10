@@ -48,6 +48,7 @@ public:
 
   void printImm(const MCInst *MI, unsigned OpNo, raw_ostream &O);
 
+  void printAddSubImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   static const char *getRegisterName(unsigned RegNo);
 };
 

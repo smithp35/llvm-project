@@ -53,41 +53,13 @@ def uimm12 : Operand<i32>, ImmLeaf<i32, [{
 
 /// Arm ARM Add/subtract (immediate)
 
-class AddSubImmGen<string opstr, bits<1> op, bits<1> S>
-    : DataProcessingImm<0b010,
-                        (outs GPR64sp:$rd),
-                        (ins GPR64sp:$rn, uimm12:$imm),
-                        !strconcat(opstr, " $rd, $rn, $imm"), []> {
-    bits<5>  rn;
-    bits<5>  rd;
-    bits<12> imm;
-    let Inst{30} = op;
-    let Inst{29} = S;
-    let Inst{22} = 0b0; // hard code shift to 0
-    let Inst{21-10} = imm;
-    let Inst{9-5} = rn;
-    let Inst{4-0} = rd;
-}
+// Non flag setting
+defm ADDi : AddSub<"add", 0>;
+defm SUBi : AddSub<"sub", 1>;
 
 // Flag setting
-class AddSubImmS<string opstr, bits<1> op>
-    : AddSubImmGen<opstr, op, 0b1> {
-    let isCompare = 1;
-    let Defs = [NZCV];
-}
-
-// Non flag setting
-class AddSubImm<string opstr, bits<1> op>
-    : AddSubImmGen<opstr, op, 0b0> {
-}
-
-// Non flag setting
-def ADDi : AddSubImm<"add", 0>;
-def SUBi : AddSubImm<"sub", 1>;
-
-// Flag setting
-def ADDSi : AddSubImmS<"adds", 0>;
-def SUBSi : AddSubImmS<"subs", 1>;
+defm ADDSi : AddSubS<"adds", 0>;
+defm SUBSi : AddSubS<"subs", 1>;
 
 defm ADD : AddSubRegGen2<"add", 0>;
 defm SUB : AddSubRegGen2<"sub", 1>;

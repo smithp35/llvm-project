@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/A64AddressingModes.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -55,6 +56,12 @@ public:
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCSubtargetInfo &STI) const;
 
+  /// getAddSubImmOpValue - Return encoding for the 12-bit immediate value and
+  /// the 2-bit shift field.
+  uint32_t getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
+                               SmallVectorImpl<MCFixup> &Fixups,
+                               const MCSubtargetInfo &STI) const;
+
   void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
@@ -87,6 +94,44 @@ unsigned A64MCCodeEmitter::getMachineOpValue(const MCInst &MI,
 
   assert(MO.isImm() && "did not expect relocated expression");
   return static_cast<unsigned>(MO.getImm());
+}
+
+/// getAddSubImmOpValue - Return encoding for the 12-bit immediate value and
+/// the 2-bit shift field.  The shift field is stored in bits 13-14 of the
+/// return value.
+uint32_t
+A64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
+                                      SmallVectorImpl<MCFixup> &Fixups,
+                                      const MCSubtargetInfo &STI) const {
+  // Suboperands are [imm, shifter].
+  const MCOperand &MO = MI.getOperand(OpIdx);
+  const MCOperand &MO1 = MI.getOperand(OpIdx + 1);
+  assert(A64_AM::getShiftType(MO1.getImm()) == A64_AM::LSL &&
+         "unexpected shift type for add/sub immediate");
+  unsigned ShiftVal = A64_AM::getShiftValue(MO1.getImm());
+  assert((ShiftVal == 0 || ShiftVal == 12) &&
+         "unexpected shift value for add/sub immediate");
+  if (MO.isImm())
+    return MO.getImm() | (ShiftVal == 0 ? 0 : (1 << ShiftVal));
+  assert(MO.isExpr() && "Unable to encode MCOperand!");
+  // TODO deal with fixups
+  // const MCExpr *Expr = MO.getExpr();
+  // // Encode the 12 bits of the fixup.
+  // MCFixupKind Kind = MCFixupKind(A64::fixup_a64_add_imm12);
+  // Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
+
+  // ++MCNumFixups;
+
+  // // Set the shift bit of the add instruction for relocation types
+  // // R_AARCH64_TLSLE_ADD_TPREL_HI12 and R_AARCH64_TLSLD_ADD_DTPREL_HI12.
+  // if (const A64MCExpr *A64E = dyn_cast<A64MCExpr>(Expr)) {
+  //   A64MCExpr::VariantKind RefKind = A64E->getKind();
+  //   if (RefKind == A64MCExpr::VK_TPREL_HI12 ||
+  //       RefKind == A64MCExpr::VK_DTPREL_HI12 ||
+  //       RefKind == A64MCExpr::VK_SECREL_HI12)
+  //     ShiftVal = 12;
+  // }
+  return ShiftVal == 0 ? 0 : (1 << ShiftVal);
 }
 
 #define ENABLE_INSTR_PREDICATE_VERIFIER

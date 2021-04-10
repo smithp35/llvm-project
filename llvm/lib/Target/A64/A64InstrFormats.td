@@ -6,10 +6,48 @@
 //
 //===----------------------------------------------------------------------===//
 
+// ADD/Sub immediate shifter operand:
+//  second operand:
+//  {7-6} - shift type: 00 = lsl
+//  {5-0} - imm6: #0 or #12
+
+
 // Shifter operand for arithmetic shifted encodings.
 def ShifterOperand : AsmOperandClass {
   let Name = "Shifter";
 }
+
+let DiagnosticType = "AddSubSecondSource" in {
+  def AddSubImmOperand : AsmOperandClass {
+    let Name = "AddSubImm";
+    let ParserMethod = "tryParseImmWithOptionalShift";
+    let RenderMethod = "addImmWithOptionalShiftOperands<12>";
+  }
+  def AddSubImmNegOperand : AsmOperandClass {
+    let Name = "AddSubImmNeg";
+    let ParserMethod = "tryParseImmWithOptionalShift";
+    let RenderMethod = "addImmNegWithOptionalShiftOperands<12>";
+  }
+}
+
+class addsub_shifted_imm<ValueType Ty>
+    : Operand<Ty>, ComplexPattern<Ty, 2, "SelectArithImmed", [imm]>
+  {
+  let PrintMethod = "printAddSubImm";
+  let EncoderMethod = "getAddSubImmOpValue";
+  let ParserMatchClass = AddSubImmOperand;
+  let MIOperandInfo = (ops i32imm, i32imm);
+}
+
+class addsub_shifted_imm_neg<ValueType Ty>
+    : Operand<Ty> {
+  let EncoderMethod = "getAddSubImmOpValue";
+  let ParserMatchClass = AddSubImmNegOperand;
+  let MIOperandInfo = (ops i32imm, i32imm);
+}
+
+def addsub_shifted_imm64 : addsub_shifted_imm<i64>;
+def addsub_shifted_imm_neg64 : addsub_shifted_imm_neg<i64>;
 
 // Shifter operand for arithmetic register shifted encodings.
 class ArithmeticShifterOperand : AsmOperandClass {
@@ -99,6 +137,36 @@ class A64Inst<dag outs, dag ins, string asmstr, list<dag> pattern>
     let AsmString      = asmstr;
     let Pattern        = pattern;
     let Size           = 4;
+}
+
+class BaseAddSubImm<bit isSub, bit S, string opstr,
+                    addsub_shifted_imm immtype>
+    : A64Inst<(outs GPR64sp:$rd),
+              (ins GPR64sp:$rn, immtype:$imm),
+              !strconcat(opstr, " $rd, $rn, $imm"), []> {
+  bits<5>  rd;
+  bits<5>  rn;
+  bits<14> imm;
+  let Inst{31} = 0b1; // hard code sf = 1
+  let Inst{30} = isSub;
+  let Inst{29} = S;
+  let Inst{28-24} = 0b10001;
+  let Inst{23-22} = imm{13-12};
+  let Inst{21-10} = imm{11-0};
+  let Inst{9-5} = rn;
+  let Inst{4-0} = rd;
+  let DecoderMethod = "DecodeAddSubImmShift";
+}
+
+multiclass AddSub<string opstr, bit isSub> {
+  let AddedComplexity = 6 in
+  def Xri : BaseAddSubImm<isSub, 0, opstr, addsub_shifted_imm64>;
+}
+
+multiclass AddSubS<string opstr, bit isSub> {
+  def Xri : BaseAddSubImm<isSub, 1, opstr, addsub_shifted_imm64> {
+    let Defs = [NZCV];
+  }
 }
 
 class LogicalRegGenBase <string opstr, bits<2> opc, bits<1> N>

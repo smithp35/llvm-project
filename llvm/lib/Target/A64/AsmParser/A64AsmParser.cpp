@@ -82,6 +82,7 @@ public:
                                         SMLoc &EndLoc) override;
   OperandMatchResultTy tryParseOptionalShiftExtend(OperandVector &Operands);
   bool ParseDirective(AsmToken DirectiveID) override;
+  OperandMatchResultTy tryParseImmWithOptionalShift(OperandVector &Operands);
 };
 
 class A64Operand : public MCParsedAsmOperand {
@@ -89,6 +90,7 @@ class A64Operand : public MCParsedAsmOperand {
 private:
   enum KindTy {
     k_Immediate,
+    k_ShiftedImm,
     k_Register,
     k_ShiftExtend,
     k_Token,
@@ -131,10 +133,16 @@ private:
     const MCExpr *Val;
   };
 
+  struct ShiftedImmOp {
+    const MCExpr *Val;
+    unsigned ShiftAmount;
+  };
+
   union {
     struct TokOp Tok;
     struct RegOp Reg;
     struct ImmOp Imm;
+    struct ShiftedImmOp ShiftedImm;
     struct ShiftExtendOp ShiftExtend;
   };
 
@@ -158,6 +166,9 @@ public:
       break;
     case k_ShiftExtend:
       ShiftExtend = o.ShiftExtend;
+      break;
+    case k_ShiftedImm:
+      ShiftedImm = o.ShiftedImm;
       break;
     }
   }
@@ -191,6 +202,7 @@ public:
   bool isReg() const override { return Kind == KindTy::k_Register; }
   bool isMem() const override { return false; }
   bool isShiftExtend() const { return Kind == k_ShiftExtend; }
+  bool isShiftedImm() const { return Kind == k_ShiftedImm; }
   bool isShifter() const {
     if (!isShiftExtend())
       return false;
@@ -220,6 +232,66 @@ public:
            getShiftExtendAmount() < 64;
   }
 
+  /// Returns the immediate value as a pair of (imm, shift) if the immediate is
+  /// a shifted immediate by value 'Shift' or '0', or if it is an unshifted
+  /// immediate that can be shifted by 'Shift'.
+  template <unsigned Width>
+  Optional<std::pair<int64_t, unsigned>> getShiftedVal() const {
+    if (isShiftedImm() && Width == getShiftedImmShift())
+      if (auto *CE = dyn_cast<MCConstantExpr>(getShiftedImmVal()))
+        return std::make_pair(CE->getValue(), Width);
+
+    if (isImm())
+      if (auto *CE = dyn_cast<MCConstantExpr>(getImm())) {
+        int64_t Val = CE->getValue();
+        if ((Val != 0) && (uint64_t(Val >> Width) << Width) == uint64_t(Val))
+          return std::make_pair(Val >> Width, Width);
+        else
+          return std::make_pair(Val, 0u);
+      }
+    return {};
+  }
+
+  bool isAddSubImm() const {
+    if (!isShiftedImm() && !isImm())
+      return false;
+
+    const MCExpr *Expr;
+
+    // An ADD/SUB shifter is either 'lsl #0' or 'lsl #12'.
+    if (isShiftedImm()) {
+      unsigned Shift = ShiftedImm.ShiftAmount;
+      Expr = ShiftedImm.Val;
+      if (Shift != 0 && Shift != 12)
+        return false;
+    } else {
+      Expr = getImm();
+    }
+
+    // TODO handle symbol refkind
+
+    // If it's a constant, it should be a real immediate in range.
+    if (auto ShiftedVal = getShiftedVal<12>())
+      return ShiftedVal->first >= 0 && ShiftedVal->first <= 0xfff;
+
+    // TODO handle expressions in fixup
+    return false;
+    // If it's an expression, we hope for the best and let the fixup/relocation
+    // code deal with it.
+    // return true;
+  }
+
+  bool isAddSubImmNeg() const {
+    if (!isShiftedImm() && !isImm())
+      return false;
+
+    // Otherwise it should be a real negative immediate in range.
+    if (auto ShiftedVal = getShiftedVal<12>())
+      return ShiftedVal->first < 0 && -ShiftedVal->first <= 0xfff;
+
+    return false;
+  }
+
   void addRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     Inst.addOperand(MCOperand::createReg(getReg()));
@@ -247,6 +319,21 @@ public:
     Inst.addOperand(MCOperand::createImm(Imm));
   }
 
+  template <int Shift>
+  void addImmWithOptionalShiftOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 2 && "Invalid number of operands!");
+    if (auto ShiftedVal = getShiftedVal<Shift>()) {
+      Inst.addOperand(MCOperand::createImm(ShiftedVal->first));
+      Inst.addOperand(MCOperand::createImm(ShiftedVal->second));
+    } else if (isShiftedImm()) {
+      addExpr(Inst, getShiftedImmVal());
+      Inst.addOperand(MCOperand::createImm(getShiftedImmShift()));
+    } else {
+      addExpr(Inst, getImm());
+      Inst.addOperand(MCOperand::createImm(0));
+    }
+  }
+
   unsigned getReg() const override {
     assert(Kind == k_Register && "Invalid access!");
     return Reg.RegNum;
@@ -255,6 +342,16 @@ public:
   const MCExpr *getImm() const {
     assert(Kind == KindTy::k_Immediate && "Invalid type access!");
     return Imm.Val;
+  }
+
+  const MCExpr *getShiftedImmVal() const {
+    assert(Kind == k_ShiftedImm && "Invalid access!");
+    return ShiftedImm.Val;
+  }
+
+  unsigned getShiftedImmShift() const {
+    assert(Kind == k_ShiftedImm && "Invalid access!");
+    return ShiftedImm.ShiftAmount;
   }
 
   StringRef getToken() const {
@@ -278,6 +375,13 @@ public:
       if (!getShiftExtendAmount() && !hasShiftExtendAmount())
         break;
       LLVM_FALLTHROUGH;
+    case k_ShiftedImm: {
+      unsigned Shift = getShiftedImmShift();
+      OS << "<shiftedimm ";
+      OS << *getShiftedImmVal();
+      OS << ", lsl #" << A64_AM::getShiftValue(Shift) << ">";
+      break;
+    }
     case k_ShiftExtend:
       OS << "<" << A64_AM::getShiftExtendName(getShiftExtendType()) << " #"
          << getShiftExtendAmount();
@@ -345,6 +449,18 @@ public:
     Op->EndLoc = E;
     return Op;
   }
+
+  static std::unique_ptr<A64Operand> CreateShiftedImm(const MCExpr *Val,
+                                                      unsigned ShiftAmount,
+                                                      SMLoc S, SMLoc E,
+                                                      MCContext &Ctx) {
+    auto Op = std::make_unique<A64Operand>(k_ShiftedImm, Ctx);
+    Op->ShiftedImm.Val = Val;
+    Op->ShiftedImm.ShiftAmount = ShiftAmount;
+    Op->StartLoc = S;
+    Op->EndLoc = E;
+    return Op;
+  }
 };
 
 } // end anonymous namespace
@@ -390,13 +506,13 @@ bool A64AsmParser::parseRegister(OperandVector &Operands) {
 bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   // Check if the current operand has a custom associated parser, if so, try to
   // custom parse the operand, or fallback to the general approach.
-  // OperandMatchResultTy Result =
-  //     MatchOperandParserImpl(Operands, Mnemonic,
-  //     /*ParseForAllFeatures=*/true);
-  // if (Result == MatchOperand_Success)
-  //   return false;
-  // if (Result == MatchOperand_ParseFail)
-  //   return true;
+  OperandMatchResultTy Result =
+      MatchOperandParserImpl(Operands, Mnemonic,
+      /*ParseForAllFeatures=*/true);
+  if (Result == MatchOperand_Success)
+    return false;
+  if (Result == MatchOperand_ParseFail)
+    return true;
   // Nothing custom, so do general case parsing.
   SMLoc S, E;
   switch (getLexer().getKind()) {
@@ -579,6 +695,70 @@ A64AsmParser::tryParseOptionalShiftExtend(OperandVector &Operands) {
   E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
   Operands.push_back(A64Operand::CreateShiftExtend(ShOp, MCE->getValue(), true,
                                                    S, E, getContext()));
+  return MatchOperand_Success;
+}
+
+/// tryParseImmWithOptionalShift - Parse immediate operand, optionally with
+/// a shift suffix, for example '#1, lsl #12'.
+OperandMatchResultTy
+A64AsmParser::tryParseImmWithOptionalShift(OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+  SMLoc S = getLoc();
+
+  if (Parser.getTok().is(AsmToken::Hash))
+    Parser.Lex(); // Eat '#'
+  else if (Parser.getTok().isNot(AsmToken::Integer))
+    // Operand should start from # or should be integer, emit error otherwise.
+    return MatchOperand_NoMatch;
+
+  const MCExpr *Imm = nullptr;
+  // TODO support symbolic immediates
+  if (Parser.parseExpression(Imm))
+    return MatchOperand_ParseFail;
+  else if (Parser.getTok().isNot(AsmToken::Comma)) {
+    SMLoc E = Parser.getTok().getLoc();
+    Operands.push_back(A64Operand::CreateImm(Imm, S, E, getContext()));
+    return MatchOperand_Success;
+  }
+  // Eat ','
+  Parser.Lex();
+
+  // The optional operand must be "lsl #N" where N is non-negative.
+  if (!Parser.getTok().is(AsmToken::Identifier) ||
+      !Parser.getTok().getIdentifier().equals_insensitive("lsl")) {
+    Error(Parser.getTok().getLoc(), "only 'lsl #+N' valid after immediate");
+    return MatchOperand_ParseFail;
+  }
+
+  // Eat 'lsl'
+  Parser.Lex();
+
+
+  parseOptionalToken(AsmToken::Hash);
+
+  if (Parser.getTok().isNot(AsmToken::Integer)) {
+    Error(Parser.getTok().getLoc(), "only 'lsl #+N' valid after immediate");
+    return MatchOperand_ParseFail;
+  }
+
+  int64_t ShiftAmount = Parser.getTok().getIntVal();
+
+  if (ShiftAmount < 0) {
+    Error(Parser.getTok().getLoc(), "positive shift amount required");
+    return MatchOperand_ParseFail;
+  }
+  Parser.Lex(); // Eat the number
+
+  // Just in case the optional lsl #0 is used for immediates other than zero.
+  if (ShiftAmount == 0 && Imm != nullptr) {
+    SMLoc E = Parser.getTok().getLoc();
+    Operands.push_back(A64Operand::CreateImm(Imm, S, E, getContext()));
+    return MatchOperand_Success;
+  }
+
+  SMLoc E = Parser.getTok().getLoc();
+  Operands.push_back(
+      A64Operand::CreateShiftedImm(Imm, ShiftAmount, S, E, getContext()));
   return MatchOperand_Success;
 }
 

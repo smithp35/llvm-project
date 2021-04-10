@@ -86,3 +86,23 @@ void A64InstPrinter::printShiftedRegister(const MCInst *MI, unsigned OpNum,
   O << getRegisterName(MI->getOperand(OpNum).getReg());
   printShifter(MI, OpNum + 1, O);
 }
+
+void A64InstPrinter::printAddSubImm(const MCInst *MI, unsigned OpNum,
+                                    raw_ostream &O) {
+  const MCOperand &MO = MI->getOperand(OpNum);
+  if (MO.isImm()) {
+    unsigned Val = (MO.getImm() & 0xfff);
+    assert(Val == MO.getImm() && "Add/sub immediate out of range!");
+    unsigned Shift = A64_AM::getShiftValue(MI->getOperand(OpNum + 1).getImm());
+    O << '#' << formatImm(Val);
+    if (Shift != 0)
+      printShifter(MI, OpNum + 1, O);
+
+    if (CommentStream)
+      *CommentStream << '=' << formatImm(Val << Shift) << '\n';
+  } else {
+    assert(MO.isExpr() && "Unexpected operand type!");
+    MO.getExpr()->print(O, &MAI);
+    printShifter(MI, OpNum + 1, O);
+  }
+}
