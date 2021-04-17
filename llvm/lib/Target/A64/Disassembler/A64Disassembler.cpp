@@ -11,6 +11,7 @@
 
 #include "A64Disassembler.h"
 #include "A64ExternalSymbolizer.h"
+#include "MCTargetDesc/A64AddressingModes.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "TargetInfo/A64TargetInfo.h"
 #include "llvm-c/Disassembler.h"
@@ -41,7 +42,9 @@ static DecodeStatus DecodeGPR64spRegisterClass(MCInst &Inst, unsigned RegNo,
                                                const void *Decoder);
 static DecodeStatus DecodeAddSubImmShift(MCInst &Inst, uint32_t insn,
                                          uint64_t Address, const void *Decoder);
-
+static DecodeStatus DecodeLogicalImmInstruction(MCInst &Inst, uint32_t insn,
+                                                uint64_t Address,
+                                                const void *Decoder);
 #include "A64GenDisassemblerTables.inc"
 #include "A64GenInstrInfo.inc"
 
@@ -103,6 +106,25 @@ static DecodeStatus DecodeAddSubImmShift(MCInst &Inst, uint32_t insn,
                                      0, 4))
     Inst.addOperand(MCOperand::createImm(ImmVal));
   Inst.addOperand(MCOperand::createImm(12 * ShifterVal));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeLogicalImmInstruction(MCInst &Inst, uint32_t insn,
+                                                uint64_t Addr,
+                                                const void *Decoder) {
+  unsigned Rd = fieldFromInstruction(insn, 0, 5);
+  unsigned Rn = fieldFromInstruction(insn, 5, 5);
+  unsigned imm;
+
+  if (Inst.getOpcode() == A64::ANDSXri)
+    DecodeGPR64RegisterClass(Inst, Rd, Addr, Decoder);
+  else
+    DecodeGPR64spRegisterClass(Inst, Rd, Addr, Decoder);
+  DecodeGPR64RegisterClass(Inst, Rn, Addr, Decoder);
+  imm = fieldFromInstruction(insn, 10, 13);
+  if (!A64_AM::isValidDecodeLogicalImmediate(imm, 64))
+    return MCDisassembler::Fail;
+  Inst.addOperand(MCOperand::createImm(imm));
   return MCDisassembler::Success;
 }
 

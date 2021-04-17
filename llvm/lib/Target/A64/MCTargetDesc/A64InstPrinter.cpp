@@ -81,6 +81,13 @@ void A64InstPrinter::printShifter(const MCInst *MI, unsigned OpNum,
     << A64_AM::getShiftValue(Val);
 }
 
+void A64InstPrinter::printLogicalImm(const MCInst *MI, unsigned OpNum,
+                                     raw_ostream &O) {
+  uint64_t Val = MI->getOperand(OpNum).getImm();
+  O << "#0x";
+  O.write_hex(A64_AM::decodeLogicalImmediate(Val, 8 * sizeof(int64_t)));
+}
+
 void A64InstPrinter::printShiftedRegister(const MCInst *MI, unsigned OpNum,
                                           raw_ostream &O) {
   O << getRegisterName(MI->getOperand(OpNum).getReg());

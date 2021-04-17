@@ -292,6 +292,25 @@ public:
     return false;
   }
 
+  // NOTE: Also used for isLogicalImmNot as anything that can be represented as
+  // a logical immediate can always be represented when inverted.
+  template <typename T> bool isLogicalImm() const {
+    if (!isImm())
+      return false;
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+    if (!MCE)
+      return false;
+
+    int64_t Val = MCE->getValue();
+    // Avoid left shift by 64 directly.
+    uint64_t Upper = UINT64_C(-1) << (sizeof(T) * 4) << (sizeof(T) * 4);
+    // Allow all-0 or all-1 in top bits to permit bitwise NOT.
+    if ((Val & Upper) && (Val & Upper) != Upper)
+      return false;
+
+    return A64_AM::isLogicalImmediate(Val & ~Upper, sizeof(T) * 8);
+  }
+
   void addRegOperands(MCInst &Inst, unsigned N) const {
     assert(N == 1 && "Invalid number of operands!");
     Inst.addOperand(MCOperand::createReg(getReg()));
@@ -332,6 +351,24 @@ public:
       addExpr(Inst, getImm());
       Inst.addOperand(MCOperand::createImm(0));
     }
+  }
+
+  template <typename T>
+  void addLogicalImmOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    const MCConstantExpr *MCE = cast<MCConstantExpr>(getImm());
+    std::make_unsigned_t<T> Val = MCE->getValue();
+    uint64_t encoding = A64_AM::encodeLogicalImmediate(Val, sizeof(T) * 8);
+    Inst.addOperand(MCOperand::createImm(encoding));
+  }
+
+  template <typename T>
+  void addLogicalImmNotOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    const MCConstantExpr *MCE = cast<MCConstantExpr>(getImm());
+    std::make_unsigned_t<T> Val = ~MCE->getValue();
+    uint64_t encoding = A64_AM::encodeLogicalImmediate(Val, sizeof(T) * 8);
+    Inst.addOperand(MCOperand::createImm(encoding));
   }
 
   unsigned getReg() const override {
@@ -508,7 +545,7 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   // custom parse the operand, or fallback to the general approach.
   OperandMatchResultTy Result =
       MatchOperandParserImpl(Operands, Mnemonic,
-      /*ParseForAllFeatures=*/true);
+                             /*ParseForAllFeatures=*/true);
   if (Result == MatchOperand_Success)
     return false;
   if (Result == MatchOperand_ParseFail)
@@ -732,7 +769,6 @@ A64AsmParser::tryParseImmWithOptionalShift(OperandVector &Operands) {
 
   // Eat 'lsl'
   Parser.Lex();
-
 
   parseOptionalToken(AsmToken::Hash);
 

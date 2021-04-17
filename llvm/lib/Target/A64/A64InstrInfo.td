@@ -66,6 +66,12 @@ defm SUB : AddSubRegGen2<"sub", 1>;
 defm ADDS : AddSubRegGen2S<"adds", 0>;
 defm SUBS : AddSubRegGen2S<"subs", 1>;
 
+/// Arm ARM Logical (immediates)
+defm AND : LogicalImm<"and", 0b00, "bic">;
+defm ORR : LogicalImm<"orr", 0b01, "orn">;
+defm EOR : LogicalImm<"eor", 0b10, "eon">;
+defm ANDS : LogicalImmS<"ands", 0b11, "bics">;
+
 /// Arm ARM Logical (shifted register)
 
 // Non flag setting

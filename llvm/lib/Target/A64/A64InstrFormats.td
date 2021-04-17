@@ -117,6 +117,9 @@ def logical_shifted_reg64 : logical_shifted_reg<i64, GPR64, logical_shift64>;
 //  Describe A64 instructions format here
 //
 
+class InstSubst<string Asm, dag Result, bit EmitPriority = 0>
+  : InstAlias<Asm, Result, EmitPriority>;
+
 class A64Inst<dag outs, dag ins, string asmstr, list<dag> pattern>
     : Instruction {
     field bits<32> Inst;
@@ -167,6 +170,64 @@ multiclass AddSubS<string opstr, bit isSub> {
   def Xri : BaseAddSubImm<isSub, 1, opstr, addsub_shifted_imm64> {
     let Defs = [NZCV];
   }
+}
+
+let DiagnosticType = "LogicalSecondSource" in {
+  def LogicalImm64Operand : AsmOperandClass {
+    let Name = "LogicalImm64";
+    let PredicateMethod = "isLogicalImm<int64_t>";
+    let RenderMethod = "addLogicalImmOperands<int64_t>";
+  }
+  def LogicalImm64NotOperand : AsmOperandClass {
+    let Name = "LogicalImm64Not";
+    let PredicateMethod = "isLogicalImm<int64_t>";
+    let RenderMethod = "addLogicalImmNotOperands<int64_t>";
+  }
+}
+
+def logical_imm64 : Operand<i64> {
+  let PrintMethod = "printLogicalImm";
+  let ParserMatchClass = LogicalImm64Operand;
+}
+
+def logical_imm64_not : Operand<i64> {
+  let ParserMatchClass = LogicalImm64NotOperand;
+}
+
+class LogicalImmGenBase <string opstr, bits<2> opc>
+    : A64Inst<(outs GPR64sp:$rd),
+              (ins  GPR64:$rn, logical_imm64:$imm),
+              !strconcat(opstr, " $rd, $rn, $imm"), []> {
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<13> imm;
+  let Inst{31}  = 0b1; // hard code sf = 1
+  let Inst{30-29} = opc;
+  let Inst{28-23} = 0b100100;
+  let Inst{22} = imm{12};
+  let Inst{21-16} = imm{11-6};
+  let Inst{15-10} = imm{5-0};
+  let Inst{9-5} = Rn;
+  let Inst{4-0} = Rd;
+
+  let DecoderMethod = "DecodeLogicalImmInstruction";
+}
+
+multiclass LogicalImm<string opstr, bits<2> opc, string alias> {
+   def Xri : LogicalImmGenBase<opstr, opc>;
+
+   def : InstSubst<alias # " $rd, $rn, $imm",
+                  (!cast<Instruction>(NAME # "Xri") GPR64sp:$rd, GPR64:$rn,
+                       logical_imm64_not:$imm), 0>;
+}
+
+multiclass LogicalImmS<string opstr, bits<2> opc, string alias> {
+   def Xri : LogicalImmGenBase<opstr, opc> {
+     let Defs = [NZCV];
+   }
+   def : InstSubst<alias # " $rd, $rn, $imm",
+                  (!cast<Instruction>(NAME # "Xri") GPR64sp:$rd, GPR64:$rn,
+                       logical_imm64_not:$imm), 0>;
 }
 
 class LogicalRegGenBase <string opstr, bits<2> opc, bits<1> N>

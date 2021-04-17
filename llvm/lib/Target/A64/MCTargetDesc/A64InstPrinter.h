@@ -27,6 +27,7 @@ public:
   void printInst(const MCInst *MI, uint64_t Address, StringRef Annot,
                  const MCSubtargetInfo &STI, raw_ostream &O) override;
   void printRegName(raw_ostream &OS, unsigned RegNo) const override;
+  void printLogicalImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printShifter(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printShiftedRegister(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
