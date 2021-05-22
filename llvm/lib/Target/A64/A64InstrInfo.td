@@ -72,6 +72,9 @@ defm ORR : LogicalImm<"orr", 0b01, "orn">;
 defm EOR : LogicalImm<"eor", 0b10, "eon">;
 defm ANDS : LogicalImmS<"ands", 0b11, "bics">;
 
+/// Aliases for MOV (architectural)
+def : InstAlias<"mov $dst, $imm", (ORRXri GPR64sp:$dst, XZR, logical_imm64:$imm), 0>;
+
 /// Arm ARM Logical (shifted register)
 
 // Non flag setting
@@ -87,24 +90,9 @@ defm EONr : LogicalRegGen<"eon", 0b10, 0b1>;
 defm ANDSr : LogicalRegGenS<"ands", 0b11, 0b0>;
 defm BICSr : LogicalRegGenS<"bics", 0b11, 0b1>;
 
-// FIXME this is an alias of ORR with shifted register
-class MovGen
-    : DataProcessingReg<0b0, 0b0, 0b0000, 0b000000,
-                        (outs GPR64sp:$rd),
-                        (ins GPR64sp:$rm),
-                        "mov $rd, $rm", []> {
-    bits<5>  rd;
-    bits<5>  rm;
-    let Inst{29} = 0b1;
-    let Inst{23-22} = 0b00; // hard code shift to 0
-    let Inst{21} = 0b0;
-    let Inst{20-16} = rm;
-    let Inst{9-5} = 0b11111;
-    let Inst{4-0} = rd;
-}
-
-def MovRR : MovGen;
-
+/// MOV alias (architectural)
+def : InstAlias<"mov $dst, $src", (ORRrXrs GPR64:$dst, XZR, GPR64:$src, 0), 2>;
+def : InstAlias<"mvn $Xd, $Xm", (ORNrXrs GPR64:$Xd, XZR, GPR64:$Xm, 0), 3>;
 
 /// Multiply only register-register
 
