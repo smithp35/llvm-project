@@ -232,6 +232,18 @@ public:
            getShiftExtendAmount() < 64;
   }
 
+  bool isMovImm64Shifter() const {
+    if (!isShifter())
+      return false;
+
+    // A MOVi shifter is LSL of 0 or 16.
+    A64_AM::ShiftExtendType ST = getShiftExtendType();
+    if (ST != A64_AM::LSL)
+      return false;
+    uint64_t Val = getShiftExtendAmount();
+    return (Val == 0 || Val == 16 || Val == 32 || Val == 48);
+  }
+
   /// Returns the immediate value as a pair of (imm, shift) if the immediate is
   /// a shifted immediate by value 'Shift' or '0', or if it is an unshifted
   /// immediate that can be shifted by 'Shift'.
@@ -290,6 +302,16 @@ public:
       return ShiftedVal->first < 0 && -ShiftedVal->first <= 0xfff;
 
     return false;
+  }
+
+  template <int N, int M> bool isImmInRange() const {
+    if (!isImm())
+      return false;
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+    if (!MCE)
+      return false;
+    int64_t Val = MCE->getValue();
+    return (Val >= N && Val <= M);
   }
 
   // NOTE: Also used for isLogicalImmNot as anything that can be represented as

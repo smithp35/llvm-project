@@ -62,6 +62,12 @@ public:
                                SmallVectorImpl<MCFixup> &Fixups,
                                const MCSubtargetInfo &STI) const;
 
+  /// getMoveWideImmOpValue - Return the encoded value for the immediate operand
+  /// of a MOVZ or MOVK instruction.
+  uint32_t getMoveWideImmOpValue(const MCInst &MI, unsigned OpIdx,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const;
+
   void encodeInstruction(const MCInst &MI, raw_ostream &OS,
                          SmallVectorImpl<MCFixup> &Fixups,
                          const MCSubtargetInfo &STI) const override;
@@ -132,6 +138,25 @@ A64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
   //     ShiftVal = 12;
   // }
   return ShiftVal == 0 ? 0 : (1 << ShiftVal);
+}
+
+uint32_t
+A64MCCodeEmitter::getMoveWideImmOpValue(const MCInst &MI, unsigned OpIdx,
+                                        SmallVectorImpl<MCFixup> &Fixups,
+                                        const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpIdx);
+
+  if (MO.isImm())
+    return MO.getImm();
+  assert(MO.isExpr() && "Unexpected movz/movk immediate");
+  // TODO support fixups
+  //  Fixups.push_back(MCFixup::create(
+  //    0, MO.getExpr(), MCFixupKind(AArch64::fixup_aarch64_movw),
+  //    MI.getLoc()));
+
+  //++MCNumFixups;
+
+  return 0;
 }
 
 #define ENABLE_INSTR_PREDICATE_VERIFIER

@@ -94,6 +94,19 @@ defm BICSr : LogicalRegGenS<"bics", 0b11, 0b1>;
 def : InstAlias<"mov $dst, $src", (ORRrXrs GPR64:$dst, XZR, GPR64:$src, 0), 2>;
 def : InstAlias<"mvn $Xd, $Xm", (ORNrXrs GPR64:$Xd, XZR, GPR64:$Xm, 0), 3>;
 
+def MOVK : MovImm<0b11, "movk">;
+def MOVN : MovImm<0b00, "movn">;
+/// TODO need a post encoder when symbolic expressions supported.
+def MOVZ : MovImm<0b10, "movz">;
+
+// First group of aliases covers an implicit "lsl #0".
+// TODO AArch64 uses a different operand with a predicate, we don't need
+// this for the assembler right now.
+def : InstAlias<"movk $dst, $imm", (MOVK GPR64:$dst, movimm32_imm:$imm, 0), 0>;
+def : InstAlias<"movn $dst, $imm", (MOVN GPR64:$dst, movimm32_imm:$imm, 0)>;
+def : InstAlias<"movz $dst, $imm", (MOVZ GPR64:$dst, movimm32_imm:$imm, 0)>;
+
+
 /// Multiply only register-register
 
 class MultiplyAccSub <string opstr, bits<1> o0>

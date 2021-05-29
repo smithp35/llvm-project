@@ -45,6 +45,9 @@ static DecodeStatus DecodeAddSubImmShift(MCInst &Inst, uint32_t insn,
 static DecodeStatus DecodeLogicalImmInstruction(MCInst &Inst, uint32_t insn,
                                                 uint64_t Address,
                                                 const void *Decoder);
+static DecodeStatus DecodeMoveImmInstruction(MCInst &Inst, uint32_t insn,
+                                             uint64_t Address,
+                                             const void *Decoder);
 #include "A64GenDisassemblerTables.inc"
 #include "A64GenInstrInfo.inc"
 
@@ -127,6 +130,32 @@ static DecodeStatus DecodeLogicalImmInstruction(MCInst &Inst, uint32_t insn,
   Inst.addOperand(MCOperand::createImm(imm));
   return MCDisassembler::Success;
 }
+
+static DecodeStatus DecodeMoveImmInstruction(MCInst &Inst, uint32_t insn,
+                                             uint64_t Addr,
+                                             const void *Decoder) {
+  unsigned Rd = fieldFromInstruction(insn, 0, 5);
+  unsigned imm = fieldFromInstruction(insn, 5, 16);
+  unsigned shift = fieldFromInstruction(insn, 21, 2);
+  shift <<= 4;
+  switch (Inst.getOpcode()) {
+  default:
+    return MCDisassembler::Fail;
+  case A64::MOVZ:
+  case A64::MOVN:
+  case A64::MOVK:
+    DecodeGPR64RegisterClass(Inst, Rd, Addr, Decoder);
+    break;
+  }
+
+  if (Inst.getOpcode() == A64::MOVK)
+    Inst.addOperand(Inst.getOperand(0));
+
+  Inst.addOperand(MCOperand::createImm(imm));
+  Inst.addOperand(MCOperand::createImm(shift));
+  return MCDisassembler::Success;
+}
+
 
 static MCDisassembler *createA64Disassembler(const Target &T,
                                              const MCSubtargetInfo &STI,

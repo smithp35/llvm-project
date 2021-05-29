@@ -6,6 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 
+/// Helper class to describe immediates within a range
+class AsmImmRange<int Low, int High> : AsmOperandClass {
+  let Name = "Imm" # Low # "_" # High;
+  let DiagnosticType = "InvalidImm" # Low # "_" # High;
+  let RenderMethod = "addImmOperands";
+  let PredicateMethod = "isImmInRange<" # Low # "," # High # ">";
+}
+
 // ADD/Sub immediate shifter operand:
 //  second operand:
 //  {7-6} - shift type: 00 = lsl
@@ -315,6 +323,40 @@ multiclass AddSubRegGen2S<string opstr, bits<1> op> {
 class A64PseudoInst<dag outs, dag ins, list<dag> pattern, string asmstr = "">
     : A64Inst<outs, ins, asmstr, pattern> {
     let isPseudo = 1;
+}
+
+// Move immediate
+def MovImm64ShifterOperand : AsmOperandClass {
+  let SuperClasses = [ShifterOperand];
+  let Name = "MovImm64Shifter";
+  let RenderMethod = "addShifterOperands";
+  let DiagnosticType = "InvalidMovImm64Shift";
+}
+
+def movimm32_imm : Operand<i32> {
+  let ParserMatchClass = AsmImmRange<0, 65535>;
+  let EncoderMethod = "getMoveWideImmOpValue";
+  let PrintMethod = "printImm";
+}
+def movimm64_shift : Operand<i32> {
+  let PrintMethod = "printShifter";
+  let ParserMatchClass = MovImm64ShifterOperand;
+}
+
+class MovImm<bits<2> opc, string opstr> :
+  A64Inst<(outs GPR64:$rd), (ins movimm32_imm:$imm, movimm64_shift:$shift),
+          !strconcat(opstr, " $rd, $imm$shift"), []> {
+  bits<5> rd;
+  bits<16> imm;
+  bits<6> shift;
+  let Inst{31} = 0b1;
+  let Inst{30-29} = opc;
+  let Inst{28-23} = 0b100101;
+  let Inst{22-21} = shift{5-4};
+  let Inst{20-5} = imm;
+  let Inst{4-0} = rd;
+
+  let DecoderMethod = "DecodeMoveImmInstruction";
 }
 
 class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
