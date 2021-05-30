@@ -68,6 +68,13 @@ public:
                                  SmallVectorImpl<MCFixup> &Fixups,
                                  const MCSubtargetInfo &STI) const;
 
+  /// getLdStUImm12OpValue - Return encoding info for 12-bit unsigned immediate
+  /// attached to a load, store
+  /// TODO support fixups.
+  uint32_t getLdStUImm12OpValue(const MCInst &MI, unsigned OpIdx,
+                                SmallVectorImpl<MCFixup> &Fixups,
+                                const MCSubtargetInfo &STI) const;
+
   /// getMoveWideImmOpValue - Return the encoded value for the immediate operand
   /// of a MOVZ or MOVK instruction.
   uint32_t getMoveWideImmOpValue(const MCInst &MI, unsigned OpIdx,
@@ -166,6 +173,26 @@ A64MCCodeEmitter::getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
 
   // All of the information is in the fixup.
   return 0;
+}
+
+// TODO Add support for fixups.
+uint32_t
+A64MCCodeEmitter::getLdStUImm12OpValue(const MCInst &MI, unsigned OpIdx,
+                                       SmallVectorImpl<MCFixup> &Fixups,
+                                       const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpIdx);
+  uint32_t ImmVal = 0;
+
+  if (MO.isImm())
+    ImmVal = static_cast<uint32_t>(MO.getImm());
+  // else {
+  //   assert(MO.isExpr() && "unable to encode load/store imm operand");
+  //   MCFixupKind Kind = MCFixupKind(FixupKind);
+  //   Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+  //   ++MCNumFixups;
+  // }
+
+  return ImmVal;
 }
 
 uint32_t

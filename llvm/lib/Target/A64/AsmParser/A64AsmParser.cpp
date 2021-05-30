@@ -328,6 +328,19 @@ public:
     return (Val >= N && Val <= M);
   }
 
+  template <int Scale> bool isUImm12Offset() const {
+    if (!isImm())
+      return false;
+
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+    // TODO support symbolic operands
+    // if (!MCE)
+    //  return isSymbolicUImm12Offset(getImm());
+
+    int64_t Val = MCE->getValue();
+    return (Val % Scale) == 0 && Val >= 0 && (Val / Scale) < 0x1000;
+  }
+
   // NOTE: Also used for isLogicalImmNot as anything that can be represented as
   // a logical immediate can always be represented when inverted.
   template <typename T> bool isLogicalImm() const {
@@ -419,6 +432,18 @@ public:
     }
     assert(MCE && "Invalid constant immediate operand!");
     Inst.addOperand(MCOperand::createImm(MCE->getValue() >> 2));
+  }
+
+  template <int Scale>
+  void addUImm12OffsetOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+
+    if (!MCE) {
+      Inst.addOperand(MCOperand::createExpr(getImm()));
+      return;
+    }
+    Inst.addOperand(MCOperand::createImm(MCE->getValue() / Scale));
   }
 
   unsigned getReg() const override {
@@ -602,6 +627,7 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     return true;
   // Nothing custom, so do general case parsing.
   SMLoc S, E;
+  MCAsmParser &Parser = getParser();
   switch (getLexer().getKind()) {
   default: {
     SMLoc S = getLoc();
@@ -626,6 +652,15 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
     Operands.push_back(A64Operand::CreateImm(IdVal, S, E, getContext()));
     return false;
+  }
+  case AsmToken::LBrac: {
+    SMLoc Loc = Parser.getTok().getLoc();
+    Operands.push_back(A64Operand::createToken("[", false, Loc, getContext()));
+    Parser.Lex(); // Eat '['
+
+    // There's no comma after a '[', so we can parse the next operand
+    // immediately.
+    return parseOperand(Operands, Mnemonic);
   }
   case AsmToken::Integer:
   case AsmToken::Hash: {
@@ -654,6 +689,8 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 /// Adapted from RISCV, liable to need expansion
 bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                                     SMLoc NameLoc, OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+
   // First operand is token for instruction
   Operands.push_back(
       A64Operand::createToken(Name, false, NameLoc, getContext()));
@@ -675,6 +712,12 @@ bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
     // Parse next operand
     if (parseOperand(Operands, Name))
       return true;
+
+    // Handle close square brackets
+    SMLoc RLoc = Parser.getTok().getLoc();
+    if (parseOptionalToken(AsmToken::RBrac))
+      Operands.push_back(
+          A64Operand::createToken("]", false, RLoc, getContext()));
 
     ++OperandIdx;
   }

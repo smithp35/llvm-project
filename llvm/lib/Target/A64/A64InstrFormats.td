@@ -26,6 +26,27 @@ class PCRelLabel<int N> : BranchTarget<N> {
 
 def PCRelLabel19Operand   : PCRelLabel<19>;
 
+// Load/Store unsigned scaled offset operand
+// Only 64-bit 8-bytes supported at the moment
+class UImm12OffsetOperand<int Scale> : AsmOperandClass {
+  let Name = "UImm12Offset" # Scale;
+  let RenderMethod = "addUImm12OffsetOperands<" # Scale # ">";
+  let PredicateMethod = "isUImm12Offset<" # Scale # ">";
+  let DiagnosticType = "InvalidMemoryIndexed" # Scale;
+}
+
+def UImm12OffsetScale8Operand : UImm12OffsetOperand<8>;
+
+class uimm12_scaled<int Scale> : Operand<i64> {
+  let ParserMatchClass
+   = !cast<AsmOperandClass>("UImm12OffsetScale" # Scale # "Operand");
+  let EncoderMethod
+   = "getLdStUImm12OpValue";
+  let PrintMethod = "printUImm12Offset<" # Scale # ">";
+}
+
+def uimm12s8 : uimm12_scaled<8>;
+
 // Load literal address: 19-bit immediate. The low two bits of the target
 // offset are implied zero and so are not part of the immediate.
 def am_ldrlit : Operand<iPTR> {
@@ -393,6 +414,47 @@ class LoadLiteral<bits<2> opc, bit V, string opstr>
   let Inst{25-24} = 0b00;
   let Inst{23-5}  = label;
   let Inst{4-0}   = rt;
+}
+
+class BaseLoadStoreUI<bit V, bits<2> opc, dag oops, dag iops,
+                      string opstr>
+    : A64Inst<oops, iops, !strconcat(opstr, "\t$rt, [$rn, $imm]"), []> {
+  bits<5> rt;
+  bits<5> rn;
+  bits<12> imm;
+
+  let Inst{31-30} = 0b11;
+  let Inst{29-27} = 0b111;
+  let Inst{26}    = V;
+  let Inst{25-24} = 0b01;
+  let Inst{23-22} = opc;
+  let Inst{21-10} = imm;
+  let Inst{9-5}   = rn;
+  let Inst{4-0}   = rt;
+
+  let DecoderMethod = "DecodeUnsignedLdStInstruction";
+}
+
+multiclass LoadUI<bit V, bits<2> opc,
+                  Operand indextype, string opstr> {
+  let AddedComplexity = 10, mayLoad = 1, mayStore = 0, hasSideEffects = 0 in
+  def ui : BaseLoadStoreUI<V, opc, (outs GPR64:$rt),
+                           (ins GPR64sp:$rn, indextype:$imm),
+                           opstr>;
+
+  def : InstAlias<opstr # "\t$rt, [$rn]",
+                  (!cast<Instruction>(NAME # "ui") GPR64:$rt, GPR64sp:$rn, 0)>;
+}
+
+multiclass StoreUI<bit V, bits<2> opc,
+                  Operand indextype, string opstr> {
+  let AddedComplexity = 10, mayLoad = 1, mayStore = 0, hasSideEffects = 0 in
+  def ui : BaseLoadStoreUI<V, opc, (outs),
+                           (ins GPR64:$rt, GPR64sp:$rn, indextype:$imm),
+                           opstr>;
+
+  def : InstAlias<opstr # "\t$rt, [$rn]",
+                  (!cast<Instruction>(NAME # "ui") GPR64:$rt, GPR64sp:$rn, 0)>;
 }
 
 class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,

@@ -109,6 +109,11 @@ def : InstAlias<"movz $dst, $imm", (MOVZ GPR64:$dst, movimm32_imm:$imm, 0)>;
 /// Load Store
 def LDRXl : LoadLiteral<0b01, 0, "ldr">;
 
+//---
+// (unsigned immediate)
+//---
+defm LDRX : LoadUI<0b0, 0b01, uimm12s8, "ldr">;
+defm STRX : StoreUI<0b0, 0b00, uimm12s8, "str">;
 
 /// Multiply only register-register
 

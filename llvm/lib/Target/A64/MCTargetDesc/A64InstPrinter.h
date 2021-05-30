@@ -54,6 +54,12 @@ public:
 
   void printAlignedLabel(const MCInst *MI, uint64_t Address, unsigned OpNum,
                          raw_ostream &O);
+  void printUImm12Offset(const MCInst *MI, unsigned OpNum, unsigned Scale,
+                         raw_ostream &O);
+  template <int Scale>
+  void printUImm12Offset(const MCInst *MI, unsigned OpNum, raw_ostream &O) {
+    printUImm12Offset(MI, OpNum, Scale, O);
+  }
 };
 
 } // end namespace llvm

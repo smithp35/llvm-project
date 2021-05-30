@@ -140,3 +140,14 @@ void A64InstPrinter::printAlignedLabel(const MCInst *MI, uint64_t Address,
     MI->getOperand(OpNum).getExpr()->print(O, &MAI);
   }
 }
+
+void A64InstPrinter::printUImm12Offset(const MCInst *MI, unsigned OpNum,
+                                       unsigned Scale, raw_ostream &O) {
+  const MCOperand MO = MI->getOperand(OpNum);
+  if (MO.isImm()) {
+    O << "#" << formatImm(MO.getImm() * Scale);
+  } else {
+    assert(MO.isExpr() && "Unexpected operand type!");
+    MO.getExpr()->print(O, &MAI);
+  }
+}
