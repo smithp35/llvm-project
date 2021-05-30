@@ -113,3 +113,30 @@ void A64InstPrinter::printAddSubImm(const MCInst *MI, unsigned OpNum,
     printShifter(MI, OpNum + 1, O);
   }
 }
+
+void A64InstPrinter::printAlignedLabel(const MCInst *MI, uint64_t Address,
+                                       unsigned OpNum, raw_ostream &O) {
+  const MCOperand &Op = MI->getOperand(OpNum);
+
+  // If the label has already been resolved to an immediate offset (say, when
+  // we're running the disassembler), just print the immediate.
+  if (Op.isImm()) {
+    int64_t Offset = Op.getImm() * 4;
+    if (PrintBranchImmAsAddress)
+      O << formatHex(Address + Offset);
+    else
+      O << "#" << formatImm(Offset);
+    return;
+  }
+
+  // If the branch target is simply an address then print it in hex.
+  const MCConstantExpr *BranchTarget =
+      dyn_cast<MCConstantExpr>(MI->getOperand(OpNum).getExpr());
+  int64_t TargetAddress;
+  if (BranchTarget && BranchTarget->evaluateAsAbsolute(TargetAddress)) {
+    O << formatHex(TargetAddress);
+  } else {
+    // Otherwise, just print the expression.
+    MI->getOperand(OpNum).getExpr()->print(O, &MAI);
+  }
+}

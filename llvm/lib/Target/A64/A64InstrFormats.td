@@ -14,6 +14,28 @@ class AsmImmRange<int Low, int High> : AsmOperandClass {
   let PredicateMethod = "isImmInRange<" # Low # "," # High # ">";
 }
 
+class BranchTarget<int N> : AsmOperandClass {
+  let Name = "BranchTarget" # N;
+  let DiagnosticType = "InvalidLabel";
+  let PredicateMethod = "isBranchTarget<" # N # ">";
+}
+
+class PCRelLabel<int N> : BranchTarget<N> {
+  let Name = "PCRelLabel" # N;
+}
+
+def PCRelLabel19Operand   : PCRelLabel<19>;
+
+// Load literal address: 19-bit immediate. The low two bits of the target
+// offset are implied zero and so are not part of the immediate.
+def am_ldrlit : Operand<iPTR> {
+  let EncoderMethod = "getLoadLiteralOpValue";
+  let DecoderMethod = "DecodePCRelLabel19";
+  let PrintMethod = "printAlignedLabel";
+  let ParserMatchClass = PCRelLabel19Operand;
+  let OperandType = "OPERAND_PCREL";
+}
+
 // ADD/Sub immediate shifter operand:
 //  second operand:
 //  {7-6} - shift type: 00 = lsl
@@ -357,6 +379,20 @@ class MovImm<bits<2> opc, string opstr> :
   let Inst{4-0} = rd;
 
   let DecoderMethod = "DecodeMoveImmInstruction";
+}
+
+let mayLoad = 1, mayStore = 0, hasSideEffects = 0, AddedComplexity = 20 in
+class LoadLiteral<bits<2> opc, bit V, string opstr>
+    : A64Inst<(outs GPR64:$rt), (ins am_ldrlit:$label),
+        !strconcat(opstr, "\t$rt, $label"), []> {
+  bits<5> rt;
+  bits<19> label;
+  let Inst{31-30} = opc;
+  let Inst{29-27} = 0b011;
+  let Inst{26}    = V;
+  let Inst{25-24} = 0b00;
+  let Inst{23-5}  = label;
+  let Inst{4-0}   = rt;
 }
 
 class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,

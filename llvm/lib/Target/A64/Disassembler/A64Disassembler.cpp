@@ -48,6 +48,8 @@ static DecodeStatus DecodeLogicalImmInstruction(MCInst &Inst, uint32_t insn,
 static DecodeStatus DecodeMoveImmInstruction(MCInst &Inst, uint32_t insn,
                                              uint64_t Address,
                                              const void *Decoder);
+static DecodeStatus DecodePCRelLabel19(MCInst &Inst, unsigned Imm,
+                                       uint64_t Address, const void *Decoder);
 #include "A64GenDisassemblerTables.inc"
 #include "A64GenInstrInfo.inc"
 
@@ -156,6 +158,20 @@ static DecodeStatus DecodeMoveImmInstruction(MCInst &Inst, uint32_t insn,
   return MCDisassembler::Success;
 }
 
+static DecodeStatus DecodePCRelLabel19(MCInst &Inst, unsigned Imm,
+                                       uint64_t Addr, const void *Decoder) {
+  int64_t ImmVal = Imm;
+  const A64Disassembler *Dis = static_cast<const A64Disassembler *>(Decoder);
+
+  // Sign-extend 19-bit immediate.
+  if (ImmVal & (1 << (19 - 1)))
+    ImmVal |= ~((1LL << 19) - 1);
+
+  if (!Dis->tryAddingSymbolicOperand(Inst, ImmVal * 4, Addr,
+                                     Inst.getOpcode() != A64::LDRXl, 0, 0, 4))
+    Inst.addOperand(MCOperand::createImm(ImmVal));
+  return MCDisassembler::Success;
+}
 
 static MCDisassembler *createA64Disassembler(const Target &T,
                                              const MCSubtargetInfo &STI,

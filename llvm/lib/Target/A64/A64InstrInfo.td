@@ -106,6 +106,9 @@ def : InstAlias<"movk $dst, $imm", (MOVK GPR64:$dst, movimm32_imm:$imm, 0), 0>;
 def : InstAlias<"movn $dst, $imm", (MOVN GPR64:$dst, movimm32_imm:$imm, 0)>;
 def : InstAlias<"movz $dst, $imm", (MOVZ GPR64:$dst, movimm32_imm:$imm, 0)>;
 
+/// Load Store
+def LDRXl : LoadLiteral<0b01, 0, "ldr">;
+
 
 /// Multiply only register-register
 

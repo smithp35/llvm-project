@@ -62,6 +62,12 @@ public:
                                SmallVectorImpl<MCFixup> &Fixups,
                                const MCSubtargetInfo &STI) const;
 
+  /// getLoadLiteralOpValue - Return the encoded value for a load-literal
+  /// pc-relative address.
+  uint32_t getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const;
+
   /// getMoveWideImmOpValue - Return the encoded value for the immediate operand
   /// of a MOVZ or MOVK instruction.
   uint32_t getMoveWideImmOpValue(const MCInst &MI, unsigned OpIdx,
@@ -138,6 +144,28 @@ A64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
   //     ShiftVal = 12;
   // }
   return ShiftVal == 0 ? 0 : (1 << ShiftVal);
+}
+
+/// getLoadLiteralOpValue - Return the encoded value for a load-literal
+/// pc-relative address.
+uint32_t
+A64MCCodeEmitter::getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
+                                        SmallVectorImpl<MCFixup> &Fixups,
+                                        const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpIdx);
+
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm())
+    return MO.getImm();
+  assert(MO.isExpr() && "Unexpected target type!");
+  // TODO deal with fixups
+  //  MCFixupKind Kind = MCFixupKind(A64::fixup_a64_ldr_pcrel_imm19);
+  //  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+
+  // ++MCNumFixups;
+
+  // All of the information is in the fixup.
+  return 0;
 }
 
 uint32_t

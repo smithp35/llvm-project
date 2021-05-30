@@ -244,6 +244,20 @@ public:
     return (Val == 0 || Val == 16 || Val == 32 || Val == 48);
   }
 
+  template <int N> bool isBranchTarget() const {
+    if (!isImm())
+      return false;
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+    if (!MCE)
+      return true;
+    int64_t Val = MCE->getValue();
+    if (Val & 0x3)
+      return false;
+    assert(N > 0 && "Branch target immediate cannot be 0 bits!");
+    return (Val >= -((1 << (N - 1)) << 2) &&
+            Val <= (((1 << (N - 1)) - 1) << 2));
+  }
+
   /// Returns the immediate value as a pair of (imm, shift) if the immediate is
   /// a shifted immediate by value 'Shift' or '0', or if it is an unshifted
   /// immediate that can be shifted by 'Shift'.
@@ -391,6 +405,20 @@ public:
     std::make_unsigned_t<T> Val = ~MCE->getValue();
     uint64_t encoding = A64_AM::encodeLogicalImmediate(Val, sizeof(T) * 8);
     Inst.addOperand(MCOperand::createImm(encoding));
+  }
+
+  void addPCRelLabel19Operands(MCInst &Inst, unsigned N) const {
+    // Branch operands don't encode the low bits, so shift them off
+    // here. If it's a label, however, just put it on directly as there's
+    // not enough information now to do anything.
+    assert(N == 1 && "Invalid number of operands!");
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+    if (!MCE) {
+      addExpr(Inst, getImm());
+      return;
+    }
+    assert(MCE && "Invalid constant immediate operand!");
+    Inst.addOperand(MCOperand::createImm(MCE->getValue() >> 2));
   }
 
   unsigned getReg() const override {
