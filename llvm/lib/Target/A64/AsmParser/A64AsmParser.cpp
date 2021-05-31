@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "MCTargetDesc/A64AddressingModes.h"
+#include "MCTargetDesc/A64MCExpr.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "MCTargetDesc/A64TargetStreamer.h"
 #include "TargetInfo/A64TargetInfo.h"
@@ -17,6 +18,7 @@
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCParser/MCTargetAsmParser.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Casting.h"
@@ -78,11 +80,18 @@ public:
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
   bool parseOperand(OperandVector &Operands, StringRef Mnemonic);
   bool parseRegister(OperandVector &Operands);
+  bool parseSymbolicImmVal(const MCExpr *&ImmVal);
+  OperandMatchResultTy tryParseAdrLabel(OperandVector &Operands);
   OperandMatchResultTy tryParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                                         SMLoc &EndLoc) override;
   OperandMatchResultTy tryParseOptionalShiftExtend(OperandVector &Operands);
   bool ParseDirective(AsmToken DirectiveID) override;
   OperandMatchResultTy tryParseImmWithOptionalShift(OperandVector &Operands);
+
+  static bool classifySymbolRef(const MCExpr *Expr,
+                                A64MCExpr::VariantKind &ELFRefKind,
+                                MCSymbolRefExpr::VariantKind &DarwinRefKind,
+                                int64_t &Addend);
 };
 
 class A64Operand : public MCParsedAsmOperand {
@@ -211,6 +220,23 @@ public:
     return (ST == A64_AM::LSL || ST == A64_AM::LSR || ST == A64_AM::ASR ||
             ST == A64_AM::ROR || ST == A64_AM::MSL);
   }
+
+  bool isAdrLabel() const {
+    // Validation was handled during parsing, so we just sanity check that
+    // something didn't go haywire.
+    if (!isImm())
+      return false;
+
+    if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Imm.Val)) {
+      int64_t Val = CE->getValue();
+      int64_t Min = -(1LL << (21 - 1));
+      int64_t Max = ((1LL << (21 - 1)) - 1);
+      return Val >= Min && Val <= Max;
+    }
+
+    return true;
+  }
+
   bool isArithmeticShifter() const {
     if (!isShifter())
       return false;
@@ -358,6 +384,10 @@ public:
       return false;
 
     return A64_AM::isLogicalImmediate(Val & ~Upper, sizeof(T) * 8);
+  }
+
+  void addAdrLabelOperands(MCInst &Inst, unsigned N) const {
+    addImmOperands(Inst, N);
   }
 
   void addRegOperands(MCInst &Inst, unsigned N) const {
@@ -889,6 +919,95 @@ A64AsmParser::tryParseImmWithOptionalShift(OperandVector &Operands) {
   Operands.push_back(
       A64Operand::CreateShiftedImm(Imm, ShiftAmount, S, E, getContext()));
   return MatchOperand_Success;
+}
+
+bool A64AsmParser::parseSymbolicImmVal(const MCExpr *&ImmVal) {
+  if (parseOptionalToken(AsmToken::Colon))
+    llvm_unreachable("TODO not implemented yet");
+
+  if (getParser().parseExpression(ImmVal))
+    return true;
+
+  // if (HasELFModifier)
+  //  ImmVal = A64MCExpr::create(ImmVal, RefKind, getContext());
+
+  return false;
+}
+
+/// tryParseAdrLabel - Parse and validate a source label for the ADR
+/// instruction.
+OperandMatchResultTy A64AsmParser::tryParseAdrLabel(OperandVector &Operands) {
+  SMLoc S = getLoc();
+  const MCExpr *Expr = nullptr;
+
+  // Leave anything with a bracket to the default for SVE
+  if (getParser().getTok().is(AsmToken::LBrac))
+    return MatchOperand_NoMatch;
+
+  if (getParser().getTok().is(AsmToken::Hash))
+    getParser().Lex(); // Eat hash token.
+
+  if (parseSymbolicImmVal(Expr))
+    return MatchOperand_ParseFail;
+
+  A64MCExpr::VariantKind ELFRefKind;
+  MCSymbolRefExpr::VariantKind DarwinRefKind;
+  int64_t Addend;
+  if (classifySymbolRef(Expr, ELFRefKind, DarwinRefKind, Addend)) {
+    if (DarwinRefKind == MCSymbolRefExpr::VK_None &&
+        ELFRefKind == A64MCExpr::VK_INVALID) {
+      // No modifier was specified at all; this is the syntax for an ELF basic
+      // ADR relocation (unfortunately).
+      Expr = A64MCExpr::create(Expr, A64MCExpr::VK_ABS, getContext());
+    } else {
+      Error(S, "unexpected adr label");
+      return MatchOperand_ParseFail;
+    }
+  }
+
+  SMLoc E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
+  Operands.push_back(A64Operand::CreateImm(Expr, S, E, getContext()));
+  return MatchOperand_Success;
+}
+
+bool A64AsmParser::classifySymbolRef(
+    const MCExpr *Expr, A64MCExpr::VariantKind &ELFRefKind,
+    MCSymbolRefExpr::VariantKind &DarwinRefKind, int64_t &Addend) {
+  ELFRefKind = A64MCExpr::VK_INVALID;
+  DarwinRefKind = MCSymbolRefExpr::VK_None;
+  Addend = 0;
+
+  if (const A64MCExpr *AE = dyn_cast<A64MCExpr>(Expr)) {
+    ELFRefKind = AE->getKind();
+    Expr = AE->getSubExpr();
+  }
+
+  const MCSymbolRefExpr *SE = dyn_cast<MCSymbolRefExpr>(Expr);
+  if (SE) {
+    // It's a simple symbol reference with no addend.
+    DarwinRefKind = SE->getKind();
+    return true;
+  }
+
+  // Check that it looks like a symbol + an addend
+  MCValue Res;
+  bool Relocatable = Expr->evaluateAsRelocatable(Res, nullptr, nullptr);
+  if (!Relocatable || Res.getSymB())
+    return false;
+
+  // Treat expressions with an ELFRefKind (like ":abs_g1:3", or
+  // ":abs_g1:x" where x is constant) as symbolic even if there is no symbol.
+  if (!Res.getSymA() && ELFRefKind == A64MCExpr::VK_INVALID)
+    return false;
+
+  if (Res.getSymA())
+    DarwinRefKind = Res.getSymA()->getKind();
+  Addend = Res.getConstant();
+
+  // It's some symbol reference + a constant addend, but really
+  // shouldn't use both Darwin and ELF syntax.
+  return ELFRefKind == A64MCExpr::VK_INVALID ||
+         DarwinRefKind == MCSymbolRefExpr::VK_None;
 }
 
 bool A64AsmParser::ParseDirective(AsmToken DirectiveID) { return true; }

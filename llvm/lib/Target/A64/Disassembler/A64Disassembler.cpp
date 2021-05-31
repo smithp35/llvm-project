@@ -42,6 +42,8 @@ static DecodeStatus DecodeGPR64spRegisterClass(MCInst &Inst, unsigned RegNo,
                                                const void *Decoder);
 static DecodeStatus DecodeAddSubImmShift(MCInst &Inst, uint32_t insn,
                                          uint64_t Address, const void *Decoder);
+static DecodeStatus DecodeAdrInstruction(MCInst &Inst, uint32_t insn,
+                                         uint64_t Address, const void *Decoder);
 static DecodeStatus DecodeLogicalImmInstruction(MCInst &Inst, uint32_t insn,
                                                 uint64_t Address,
                                                 const void *Decoder);
@@ -114,6 +116,25 @@ static DecodeStatus DecodeAddSubImmShift(MCInst &Inst, uint32_t insn,
                                      0, 4))
     Inst.addOperand(MCOperand::createImm(ImmVal));
   Inst.addOperand(MCOperand::createImm(12 * ShifterVal));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeAdrInstruction(MCInst &Inst, uint32_t insn,
+                                         uint64_t Addr, const void *Decoder) {
+  unsigned Rd = fieldFromInstruction(insn, 0, 5);
+  int64_t imm = fieldFromInstruction(insn, 5, 19) << 2;
+  imm |= fieldFromInstruction(insn, 29, 2);
+  const A64Disassembler *Dis = static_cast<const A64Disassembler *>(Decoder);
+
+  // Sign-extend the 21-bit immediate.
+  if (imm & (1 << (21 - 1)))
+    imm |= ~((1LL << 21) - 1);
+
+  DecodeGPR64RegisterClass(Inst, Rd, Addr, Decoder);
+  if (!Dis->tryAddingSymbolicOperand(Inst, imm, Addr, MCDisassembler::Fail, 0,
+                                     0, 4))
+    Inst.addOperand(MCOperand::createImm(imm));
+
   return MCDisassembler::Success;
 }
 

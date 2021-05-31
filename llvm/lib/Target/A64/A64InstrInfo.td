@@ -151,3 +151,6 @@ class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
 }
 
 def mull : Mulc;
+
+// ADR address generation
+def ADR : ADR;

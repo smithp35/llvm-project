@@ -4,6 +4,7 @@ add_llvm_component_library(LLVMA64Desc
   A64MCAsmInfo.cpp
   A64MCAsmBackend.cpp
   A64MCCodeEmitter.cpp
+  A64MCExpr.cpp
   A64InstPrinter.cpp
   A64MCTargetDesc.cpp
   A64TargetStreamer.cpp

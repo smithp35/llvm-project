@@ -164,6 +164,17 @@ class logical_shifted_reg<ValueType Ty, RegisterClass regclass, Operand shiftop>
 
 def logical_shifted_reg64 : logical_shifted_reg<i64, GPR64, logical_shift64>;
 
+// ADR operand
+def AdrOperand : AsmOperandClass {
+  let Name = "AdrLabel";
+  let ParserMethod = "tryParseAdrLabel";
+  let DiagnosticType = "InvalidLabel";
+}
+def adrlabel : Operand<i64> {
+  let EncoderMethod = "getAdrLabelOpValue";
+  let ParserMatchClass = AdrOperand;
+}
+
 //===----------------------------------------------------------------------===//
 //  Describe A64 instructions format here
 //
@@ -455,6 +466,24 @@ multiclass StoreUI<bit V, bits<2> opc,
 
   def : InstAlias<opstr # "\t$rt, [$rn]",
                   (!cast<Instruction>(NAME # "ui") GPR64:$rt, GPR64sp:$rn, 0)>;
+}
+
+//---
+// Address generation.
+//---
+
+class ADR
+    : A64Inst<(outs GPR64:$xd), (ins adrlabel:$label), "adr \t$xd, $label",
+              []> {
+  bits<5>  xd;
+  bits<21> label;
+  let Inst{31}    = 0b0; // Hard code to ADR
+  let Inst{30-29} = label{1-0};
+  let Inst{28-24} = 0b10000;
+  let Inst{23-5}  = label{20-2};
+  let Inst{4-0}   = xd;
+
+  let DecoderMethod = "DecodeAdrInstruction";
 }
 
 class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
