@@ -24,6 +24,9 @@ class PCRelLabel<int N> : BranchTarget<N> {
   let Name = "PCRelLabel" # N;
 }
 
+// TODO conditional branches
+def BranchTarget26Operand : BranchTarget<26>;
+
 def PCRelLabel19Operand   : PCRelLabel<19>;
 
 // Load/Store unsigned scaled offset operand
@@ -485,6 +488,29 @@ class ADR
 
   let DecoderMethod = "DecodeAdrInstruction";
 }
+
+//---
+// Unconditional branch (immediate) instructions.
+//---
+def am_bl_target : Operand<i64> {
+  let EncoderMethod = "getBranchTargetOpValue";
+  let PrintMethod = "printAlignedLabel";
+  let ParserMatchClass = BranchTarget26Operand;
+  let OperandType = "OPERAND_PCREL";
+}
+
+class BImm<bit op, dag ins, string opstr>
+    : A64Inst<(outs), ins, !strconcat(opstr, "\t$addr"),[]> {
+  bits<26> addr;
+  let Inst{31}    = op;
+  let Inst{30-26} = 0b00101;
+  let Inst{25-0}  = addr;
+
+  let DecoderMethod = "DecodeUnconditionalBranch";
+}
+
+class CallImm<string opstr>
+    : BImm<0b1, (ins am_bl_target:$addr), opstr>;
 
 class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
                          dag outs, dag ins, string asmstr, list<dag> pattern>

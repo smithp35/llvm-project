@@ -52,6 +52,9 @@ static DecodeStatus DecodeMoveImmInstruction(MCInst &Inst, uint32_t insn,
                                              const void *Decoder);
 static DecodeStatus DecodePCRelLabel19(MCInst &Inst, unsigned Imm,
                                        uint64_t Address, const void *Decoder);
+static DecodeStatus DecodeUnconditionalBranch(MCInst &Inst, uint32_t insn,
+                                              uint64_t Addr,
+                                              const void *Decoder);
 static DecodeStatus DecodeUnsignedLdStInstruction(MCInst &Inst, uint32_t insn,
                                                   uint64_t Address,
                                                   const void *Decoder);
@@ -194,6 +197,22 @@ static DecodeStatus DecodePCRelLabel19(MCInst &Inst, unsigned Imm,
   if (!Dis->tryAddingSymbolicOperand(Inst, ImmVal * 4, Addr,
                                      Inst.getOpcode() != A64::LDRXl, 0, 0, 4))
     Inst.addOperand(MCOperand::createImm(ImmVal));
+  return MCDisassembler::Success;
+}
+
+static DecodeStatus DecodeUnconditionalBranch(MCInst &Inst, uint32_t insn,
+                                              uint64_t Addr,
+                                              const void *Decoder) {
+  int64_t imm = fieldFromInstruction(insn, 0, 26);
+  const A64Disassembler *Dis = static_cast<const A64Disassembler *>(Decoder);
+
+  // Sign-extend the 26-bit immediate.
+  if (imm & (1 << (26 - 1)))
+    imm |= ~((1LL << 26) - 1);
+
+  if (!Dis->tryAddingSymbolicOperand(Inst, imm * 4, Addr, true, 0, 0, 4))
+    Inst.addOperand(MCOperand::createImm(imm));
+
   return MCDisassembler::Success;
 }
 

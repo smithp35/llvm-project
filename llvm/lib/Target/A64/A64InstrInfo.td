@@ -154,3 +154,8 @@ def mull : Mulc;
 
 // ADR address generation
 def ADR : ADR;
+
+// Branch and Link
+let isCall = 1, Defs = [LR], Uses = [SP] in {
+  def BL : CallImm<"bl">;
+}

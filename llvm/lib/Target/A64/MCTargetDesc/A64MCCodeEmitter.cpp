@@ -68,6 +68,12 @@ public:
                               SmallVectorImpl<MCFixup> &Fixups,
                               const MCSubtargetInfo &STI) const;
 
+  /// getBranchTargetOpValue - Return the encoded value for an unconditional
+  /// branch target.
+  uint32_t getBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
+                                  SmallVectorImpl<MCFixup> &Fixups,
+                                  const MCSubtargetInfo &STI) const;
+
   /// getLoadLiteralOpValue - Return the encoded value for a load-literal
   /// pc-relative address.
   uint32_t getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
@@ -180,6 +186,31 @@ A64MCCodeEmitter::getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
   // Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
 
   // MCNumFixups += 1;
+
+  // All of the information is in the fixup.
+  return 0;
+}
+
+/// getBranchTargetOpValue - Return the encoded value for an unconditional
+/// branch target.
+/// TODO fixups
+uint32_t
+A64MCCodeEmitter::getBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
+                                         SmallVectorImpl<MCFixup> &Fixups,
+                                         const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpIdx);
+
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm())
+    return MO.getImm();
+  assert(MO.isExpr() && "Unexpected ADR target type!");
+
+  // MCFixupKind Kind = MI.getOpcode() == A64::BL
+  //                        ? MCFixupKind(A64::fixup_aarch64_pcrel_call26)
+  //                        : MCFixupKind(A64::fixup_aarch64_pcrel_branch26);
+  // Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+
+  // ++MCNumFixups;
 
   // All of the information is in the fixup.
   return 0;
