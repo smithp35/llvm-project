@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/A64AddressingModes.h"
+#include "MCTargetDesc/A64FixupKinds.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/MC/MCCodeEmitter.h"
@@ -30,6 +31,7 @@ using namespace llvm;
 #define DEBUG_TYPE "mccodeemitter"
 
 STATISTIC(MCNumEmitted, "Number of MC instructions emitted.");
+STATISTIC(MCNumFixups, "Number of MC fixups created.");
 
 namespace {
 class A64MCCodeEmitter : public MCCodeEmitter {
@@ -73,6 +75,12 @@ public:
   uint32_t getBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
                                   SmallVectorImpl<MCFixup> &Fixups,
                                   const MCSubtargetInfo &STI) const;
+
+  /// getCondBranchTargetOpValue - Return the encoded value for a conditional
+  /// branch target.
+  uint32_t getCondBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
+                                      SmallVectorImpl<MCFixup> &Fixups,
+                                      const MCSubtargetInfo &STI) const;
 
   /// getLoadLiteralOpValue - Return the encoded value for a load-literal
   /// pc-relative address.
@@ -205,12 +213,34 @@ A64MCCodeEmitter::getBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
     return MO.getImm();
   assert(MO.isExpr() && "Unexpected ADR target type!");
 
-  // MCFixupKind Kind = MI.getOpcode() == A64::BL
-  //                        ? MCFixupKind(A64::fixup_aarch64_pcrel_call26)
-  //                        : MCFixupKind(A64::fixup_aarch64_pcrel_branch26);
-  // Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+  MCFixupKind Kind = MI.getOpcode() == A64::BL
+                         ? MCFixupKind(A64::fixup_a64_pcrel_call26)
+                         : MCFixupKind(A64::fixup_a64_pcrel_branch26);
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
 
-  // ++MCNumFixups;
+  ++MCNumFixups;
+
+  // All of the information is in the fixup.
+  return 0;
+}
+
+/// getCondBranchTargetOpValue - Return the encoded value for a conditional
+/// branch target.
+uint32_t
+A64MCCodeEmitter::getCondBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
+                                             SmallVectorImpl<MCFixup> &Fixups,
+                                             const MCSubtargetInfo &STI) const {
+  const MCOperand &MO = MI.getOperand(OpIdx);
+
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm())
+    return MO.getImm();
+  assert(MO.isExpr() && "Unexpected target type!");
+
+  MCFixupKind Kind = MCFixupKind(A64::fixup_a64_pcrel_branch19);
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+
+  ++MCNumFixups;
 
   // All of the information is in the fixup.
   return 0;

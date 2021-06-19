@@ -155,7 +155,14 @@ def mull : Mulc;
 // ADR address generation
 def ADR : ADR;
 
+let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
+def B  : BranchImm<"b">;
+}
+
 // Branch and Link
 let isCall = 1, Defs = [LR], Uses = [SP] in {
   def BL : CallImm<"bl">;
 }
+
+// Conditional branch
+def Bcc : BCond;

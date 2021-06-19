@@ -15,6 +15,16 @@ namespace llvm {
 namespace A64 {
 
 enum Fixups {
+  // The high 19 bits of a 21-bit pc-relative immediate.
+  fixup_a64_pcrel_branch19 = FirstTargetFixupKind,
+
+  // The high 26 bits of a 28-bit pc-relative immediate.
+  fixup_a64_pcrel_branch26,
+
+  // The high 26 bits of a 28-bit pc-relative immediate. Distinguished from
+  // branch26 only on ELF.
+  fixup_a64_pcrel_call26,
+
   // Marker
   LastTargetFixupKind,
   NumTargetFixupKinds = LastTargetFixupKind - FirstTargetFixupKind

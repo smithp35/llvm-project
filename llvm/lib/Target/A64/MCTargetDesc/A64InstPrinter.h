@@ -45,9 +45,12 @@ public:
   }
 
   // Operand printers
+
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
 
   void printImm(const MCInst *MI, unsigned OpNo, raw_ostream &O);
+
+  void printCondCode(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
   void printAddSubImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   static const char *getRegisterName(unsigned RegNo);

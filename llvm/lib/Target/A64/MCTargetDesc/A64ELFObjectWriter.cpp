@@ -11,8 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "MCTargetDesc/A64FixupKinds.h"
+#include "MCTargetDesc/A64MCExpr.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
+#include "llvm/BinaryFormat/ELF.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCELFObjectWriter.h"
+#include "llvm/MC/MCValue.h"
+#include "llvm/Support/ErrorHandling.h"
+#include <cassert>
+#include <cstdint>
 
 using namespace llvm;
 
@@ -36,7 +44,57 @@ A64ELFObjectWriter::A64ELFObjectWriter(uint8_t OSABI)
 unsigned A64ELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
                                           const MCFixup &Fixup,
                                           bool IsPCRel) const {
-  return 0;
+  unsigned Kind = Fixup.getTargetKind();
+  if (Kind >= FirstLiteralRelocationKind)
+    return Kind - FirstLiteralRelocationKind;
+
+  assert((!Target.getSymA() ||
+          Target.getSymA()->getKind() == MCSymbolRefExpr::VK_None ||
+          Target.getSymA()->getKind() == MCSymbolRefExpr::VK_PLT) &&
+         "Should only be expression-level modifiers here");
+
+  assert((!Target.getSymB() ||
+          Target.getSymB()->getKind() == MCSymbolRefExpr::VK_None) &&
+         "Should only be expression-level modifiers here");
+
+  if (IsPCRel) {
+    switch (Kind) {
+    case FK_Data_1:
+      Ctx.reportError(Fixup.getLoc(), "1-byte data relocations not supported");
+      return ELF::R_A64_NONE;
+    case FK_Data_2:
+      return ELF::R_A64_PREL16;
+    case FK_Data_4:
+      return ELF::R_A64_PREL32;
+    case FK_Data_8:
+      return ELF::R_A64_PREL64;
+    case A64::fixup_a64_pcrel_branch26:
+      return ELF::R_A64_JUMP26;
+    case A64::fixup_a64_pcrel_call26:
+      return ELF::R_A64_CALL26;
+    case A64::fixup_a64_pcrel_branch19:
+      return ELF::R_A64_CONDBR19;
+    default:
+      Ctx.reportError(Fixup.getLoc(), "Unknown ELF relocation type");
+      return ELF::R_A64_NONE;
+    }
+  } else {
+    switch (Fixup.getTargetKind()) {
+    case FK_Data_1:
+      Ctx.reportError(Fixup.getLoc(), "1-byte data relocations not supported");
+      return ELF::R_A64_NONE;
+    case FK_Data_2:
+      return ELF::R_A64_ABS16;
+    case FK_Data_4:
+      return ELF::R_A64_ABS32;
+    case FK_Data_8:
+      return ELF::R_A64_ABS64;
+    default:
+      Ctx.reportError(Fixup.getLoc(), "Unknown ELF relocation type");
+      return ELF::R_A64_NONE;
+    }
+  }
+  llvm_unreachable("Unimplemented fixup -> relocation");
 }
 
 std::unique_ptr<MCObjectTargetWriter>

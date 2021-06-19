@@ -14,6 +14,7 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCELFObjectWriter.h"
+#include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/Support/EndianStream.h"
 
 using namespace llvm;
@@ -21,6 +22,9 @@ using namespace llvm;
 namespace {
 
 class A64AsmBackend : public MCAsmBackend {
+  static const unsigned PCRelFlagVal =
+      MCFixupKindInfo::FKF_IsAlignedDownTo32Bits | MCFixupKindInfo::FKF_IsPCRel;
+
 protected:
   Triple TheTriple;
 
@@ -34,34 +38,132 @@ public:
     return A64::NumTargetFixupKinds;
   }
 
+  const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override {
+    const static MCFixupKindInfo Infos[A64::NumTargetFixupKinds] = {
+        // This table *must* be in the order that the fixup_* kinds are defined
+        // in A64FixupKinds.h.
+        //
+        // Name                           Offset (bits) Size (bits)     Flags
+        {"fixup_a64_pcrel_branch19", 5, 19, PCRelFlagVal},
+        {"fixup_a64_pcrel_branch26", 0, 26, PCRelFlagVal},
+        {"fixup_a64_pcrel_call26", 0, 26, PCRelFlagVal}};
+
+    // Fixup kinds from .reloc directive are like R_A64_NONE. They do not
+    // require any extra processing.
+    if (Kind >= FirstLiteralRelocationKind)
+      return MCAsmBackend::getFixupKindInfo(FK_NONE);
+
+    if (Kind < FirstTargetFixupKind)
+      return MCAsmBackend::getFixupKindInfo(Kind);
+
+    assert(unsigned(Kind - FirstTargetFixupKind) < getNumFixupKinds() &&
+           "Invalid kind!");
+    return Infos[Kind - FirstTargetFixupKind];
+  }
+
   void applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                   const MCValue &Target, MutableArrayRef<char> Data,
                   uint64_t Value, bool IsResolved,
                   const MCSubtargetInfo *STI) const override;
-
-  bool mayNeedRelaxation(const MCInst &Inst,
-                         const MCSubtargetInfo &STI) const override;
 
   bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
                             const MCRelaxableFragment *DF,
                             const MCAsmLayout &Layout) const override;
   void relaxInstruction(MCInst &Inst,
                         const MCSubtargetInfo &STI) const override;
+
   bool writeNopData(raw_ostream &OS, uint64_t Count,
                     const MCSubtargetInfo *STI) const override;
 };
 
 } // end anonymous namespace
 
+/// The number of bytes the fixup may change.
+static unsigned getFixupKindNumBytes(unsigned Kind) {
+  switch (Kind) {
+  default:
+    llvm_unreachable("Unknown fixup kind!");
+
+  case FK_Data_1:
+    return 1;
+
+  case FK_Data_2:
+  case FK_SecRel_2:
+    return 2;
+
+  case A64::fixup_a64_pcrel_branch19:
+    return 3;
+
+  case A64::fixup_a64_pcrel_branch26:
+  case A64::fixup_a64_pcrel_call26:
+  case FK_Data_4:
+  case FK_SecRel_4:
+    return 4;
+
+  case FK_Data_8:
+    return 8;
+  }
+}
+
+static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
+                                 uint64_t Value, MCContext &Ctx,
+                                 const Triple &TheTriple, bool IsResolved) {
+  int64_t SignedValue = static_cast<int64_t>(Value);
+  switch (Fixup.getTargetKind()) {
+  default:
+    llvm_unreachable("Unknown fixup kind!");
+  case A64::fixup_a64_pcrel_branch19:
+    // Signed 21-bit immediate
+    if (SignedValue > 2097151 || SignedValue < -2097152)
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    if (Value & 0x3)
+      Ctx.reportError(Fixup.getLoc(), "fixup not sufficiently aligned");
+    // Low two bits are not encoded.
+    return (Value >> 2) & 0x7ffff;
+  case A64::fixup_a64_pcrel_branch26:
+  case A64::fixup_a64_pcrel_call26:
+    // Signed 28-bit immediate
+    if (SignedValue > 134217727 || SignedValue < -134217728)
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    // Low two bits are not encoded (4-byte alignment assumed).
+    if (Value & 0x3)
+      Ctx.reportError(Fixup.getLoc(), "fixup not sufficiently aligned");
+    return (Value >> 2) & 0x3ffffff;
+  case FK_Data_1:
+  case FK_Data_2:
+  case FK_Data_4:
+  case FK_Data_8:
+  case FK_SecRel_2:
+  case FK_SecRel_4:
+    return Value;
+  }
+}
+
 void A64AsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
                                const MCValue &Target,
                                MutableArrayRef<char> Data, uint64_t Value,
                                bool IsResolved,
-                               const MCSubtargetInfo *STI) const {}
+                               const MCSubtargetInfo *STI) const {
+  if (!Value)
+    return; // Doesn't change encoding.
+  unsigned Kind = Fixup.getKind();
+  if (Kind >= FirstLiteralRelocationKind)
+    return;
+  unsigned NumBytes = getFixupKindNumBytes(Kind);
+  MCFixupKindInfo Info = getFixupKindInfo(Fixup.getKind());
+  MCContext &Ctx = Asm.getContext();
+  // Apply any target-specific value adjustments.
+  Value = adjustFixupValue(Fixup, Target, Value, Ctx, TheTriple, IsResolved);
 
-bool A64AsmBackend::mayNeedRelaxation(const MCInst &Inst,
-                                      const MCSubtargetInfo &STI) const {
-  return false;
+  // Shift the value into position.
+  Value <<= Info.TargetOffset;
+
+  unsigned Offset = Fixup.getOffset();
+  assert(Offset + NumBytes <= Data.size() && "Invalid fixup offset!");
+
+  // Little endian only
+  for (unsigned i = 0; i != NumBytes; ++i)
+    Data[Offset + i] |= uint8_t((Value >> (i * 8)) & 0xff);
 }
 
 bool A64AsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,

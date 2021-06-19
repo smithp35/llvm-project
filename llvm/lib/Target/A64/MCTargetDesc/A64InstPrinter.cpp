@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "A64InstPrinter.h"
+#include "Utils/A64BaseInfo.h"
 #include "MCTargetDesc/A64AddressingModes.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
@@ -63,6 +64,12 @@ void A64InstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     assert(Op.isExpr() && "unknown operand kind in printOperand");
     Op.getExpr()->print(O, &MAI);
   }
+}
+
+void A64InstPrinter::printCondCode(const MCInst *MI, unsigned OpNum,
+                                   raw_ostream &O) {
+  A64CC::CondCode CC = (A64CC::CondCode)MI->getOperand(OpNum).getImm();
+  O << A64CC::getCondCodeName(CC);
 }
 
 void A64InstPrinter::printImm(const MCInst *MI, unsigned OpNo, raw_ostream &O) {

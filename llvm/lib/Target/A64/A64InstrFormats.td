@@ -489,9 +489,52 @@ class ADR
   let DecoderMethod = "DecodeAdrInstruction";
 }
 
+def CondCode : AsmOperandClass {
+  let Name = "CondCode";
+  let DiagnosticType = "InvalidCondCode";
+}
+
+// Condition code.
+// 4-bit immediate. Pretty-printed as <cc>
+def ccode : Operand<i32> {
+  let PrintMethod = "printCondCode";
+  let ParserMatchClass = CondCode;
+}
+
+// Conditional branch target. 19-bit immediate. The low two bits of the target
+// offset are implied zero and so are not part of the immediate.
+def am_brcond : Operand<OtherVT> {
+  let EncoderMethod = "getCondBranchTargetOpValue";
+  let DecoderMethod = "DecodePCRelLabel19";
+  let PrintMethod = "printAlignedLabel";
+  let ParserMatchClass = PCRelLabel19Operand;
+  let OperandType = "OPERAND_PCREL";
+}
+
+class BCond : A64Inst<(outs), (ins ccode:$cond, am_brcond:$target),
+                     "b.$cond\t$target",[]> {
+  let isBranch = 1;
+  let isTerminator = 1;
+  let Uses = [NZCV];
+
+  bits<4> cond;
+  bits<19> target;
+  let Inst{31-24} = 0b01010100;
+  let Inst{23-5} = target;
+  let Inst{4} = 0;
+  let Inst{3-0} = cond;
+}
+
 //---
 // Unconditional branch (immediate) instructions.
 //---
+def am_b_target : Operand<OtherVT> {
+  let EncoderMethod = "getBranchTargetOpValue";
+  let PrintMethod = "printAlignedLabel";
+  let ParserMatchClass = BranchTarget26Operand;
+  let OperandType = "OPERAND_PCREL";
+}
+
 def am_bl_target : Operand<i64> {
   let EncoderMethod = "getBranchTargetOpValue";
   let PrintMethod = "printAlignedLabel";
@@ -511,6 +554,9 @@ class BImm<bit op, dag ins, string opstr>
 
 class CallImm<string opstr>
     : BImm<0b1, (ins am_bl_target:$addr), opstr>;
+
+class BranchImm<string opstr>
+    : BImm<0b0, (ins am_b_target:$addr), opstr>;
 
 class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
                          dag outs, dag ins, string asmstr, list<dag> pattern>

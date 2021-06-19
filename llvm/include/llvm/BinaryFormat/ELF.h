@@ -418,6 +418,11 @@ enum {
 #include "ELFRelocs/PowerPC64.def"
 };
 
+// ELF Relocation types for A64
+enum {
+#include "ELFRelocs/A64.def"
+};
+
 // ELF Relocation types for AArch64
 enum {
 #include "ELFRelocs/AArch64.def"

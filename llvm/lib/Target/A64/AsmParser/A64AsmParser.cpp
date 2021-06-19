@@ -10,6 +10,7 @@
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "MCTargetDesc/A64TargetStreamer.h"
 #include "TargetInfo/A64TargetInfo.h"
+#include "Utils/A64BaseInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
@@ -30,6 +31,8 @@ namespace {
 class A64Operand;
 
 class A64AsmParser : public MCTargetAsmParser {
+private:
+  StringRef Mnemonic; ///< Instruction mnemonic.
 
   A64TargetStreamer &getTargetStreamer() {
     MCTargetStreamer &TS = *getParser().getStreamer().getTargetStreamer();
@@ -74,7 +77,7 @@ public:
   };
 
   SMLoc getLoc() const { return getParser().getTok().getLoc(); }
-
+  A64CC::CondCode parseCondCodeString(StringRef Cond);
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
@@ -100,6 +103,7 @@ private:
   enum KindTy {
     k_Immediate,
     k_ShiftedImm,
+    k_CondCode,
     k_Register,
     k_ShiftExtend,
     k_Token,
@@ -147,12 +151,17 @@ private:
     unsigned ShiftAmount;
   };
 
+  struct CondCodeOp {
+    A64CC::CondCode Code;
+  };
+
   union {
     struct TokOp Tok;
     struct RegOp Reg;
     struct ImmOp Imm;
     struct ShiftedImmOp ShiftedImm;
     struct ShiftExtendOp ShiftExtend;
+    struct CondCodeOp CondCode;
   };
 
   SMLoc StartLoc, EndLoc;
@@ -169,6 +178,9 @@ public:
       break;
     case k_Immediate:
       Imm = o.Imm;
+      break;
+    case k_CondCode:
+      CondCode = o.CondCode;
       break;
     case k_Register:
       Reg = o.Reg;
@@ -196,6 +208,11 @@ public:
     if (Kind == k_Register)
       return Reg.ShiftExtend.Amount;
     llvm_unreachable("Invalid access!");
+  }
+
+  A64CC::CondCode getCondCode() const {
+    assert(Kind == k_CondCode && "Invalid access!");
+    return CondCode.Code;
   }
 
   bool hasShiftExtendAmount() const {
@@ -269,6 +286,8 @@ public:
     uint64_t Val = getShiftExtendAmount();
     return (Val == 0 || Val == 16 || Val == 32 || Val == 48);
   }
+
+  bool isCondCode() const { return Kind == k_CondCode; }
 
   template <int N> bool isBranchTarget() const {
     if (!isImm())
@@ -384,6 +403,11 @@ public:
       return false;
 
     return A64_AM::isLogicalImmediate(Val & ~Upper, sizeof(T) * 8);
+  }
+
+  void addCondCodeOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    Inst.addOperand(MCOperand::createImm(getCondCode()));
   }
 
   void addAdrLabelOperands(MCInst &Inst, unsigned N) const {
@@ -525,6 +549,9 @@ public:
     case KindTy::k_Immediate:
       OS << *getImm();
       break;
+    case k_CondCode:
+      OS << "<condcode " << getCondCode() << ">";
+      break;
     case KindTy::k_Register:
       OS << "<register x";
       OS << getReg() << ">";
@@ -617,6 +644,15 @@ public:
     Op->EndLoc = E;
     return Op;
   }
+
+  static std::unique_ptr<A64Operand>
+  CreateCondCode(A64CC::CondCode Code, SMLoc S, SMLoc E, MCContext &Ctx) {
+    auto Op = std::make_unique<A64Operand>(k_CondCode, Ctx);
+    Op->CondCode.Code = Code;
+    Op->StartLoc = S;
+    Op->EndLoc = E;
+    return Op;
+  }
 };
 
 } // end anonymous namespace
@@ -627,6 +663,31 @@ public:
 static unsigned MatchRegisterName(StringRef Name);
 
 /// }
+
+/// parseCondCodeString - Parse a Condition Code string.
+A64CC::CondCode A64AsmParser::parseCondCodeString(StringRef Cond) {
+  A64CC::CondCode CC = StringSwitch<A64CC::CondCode>(Cond.lower())
+                           .Case("eq", A64CC::EQ)
+                           .Case("ne", A64CC::NE)
+                           .Case("cs", A64CC::HS)
+                           .Case("hs", A64CC::HS)
+                           .Case("cc", A64CC::LO)
+                           .Case("lo", A64CC::LO)
+                           .Case("mi", A64CC::MI)
+                           .Case("pl", A64CC::PL)
+                           .Case("vs", A64CC::VS)
+                           .Case("vc", A64CC::VC)
+                           .Case("hi", A64CC::HI)
+                           .Case("ls", A64CC::LS)
+                           .Case("ge", A64CC::GE)
+                           .Case("lt", A64CC::LT)
+                           .Case("gt", A64CC::GT)
+                           .Case("le", A64CC::LE)
+                           .Case("al", A64CC::AL)
+                           .Case("nv", A64CC::NV)
+                           .Default(A64CC::Invalid);
+  return CC;
+}
 
 /// Try to parse a register name. The token must be an
 /// Identifier when called, and if it is a register name the token is eaten and
@@ -734,17 +795,59 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                                     SMLoc NameLoc, OperandVector &Operands) {
   MCAsmParser &Parser = getParser();
+  // Common alias for conditional branches
+  Name = StringSwitch<StringRef>(Name.lower())
+             .Case("beq", "b.eq")
+             .Case("bne", "b.ne")
+             .Case("bhs", "b.hs")
+             .Case("bcs", "b.cs")
+             .Case("blo", "b.lo")
+             .Case("bcc", "b.cc")
+             .Case("bmi", "b.mi")
+             .Case("bpl", "b.pl")
+             .Case("bvs", "b.vs")
+             .Case("bvc", "b.vc")
+             .Case("bhi", "b.hi")
+             .Case("bls", "b.ls")
+             .Case("bge", "b.ge")
+             .Case("blt", "b.lt")
+             .Case("bgt", "b.gt")
+             .Case("ble", "b.le")
+             .Case("bal", "b.al")
+             .Case("bnv", "b.nv")
+             .Default(Name);
+
+  // Create the leading tokens for the mnemonic, split by '.' characters.
+  size_t Start = 0, Next = Name.find('.');
+  StringRef Head = Name.slice(Start, Next);
+  StringRef Mnemonic = Head;
 
   // First operand is token for instruction
   Operands.push_back(
-      A64Operand::createToken(Name, false, NameLoc, getContext()));
+      A64Operand::createToken(Head, false, NameLoc, getContext()));
+
+  // Handle condition codes for a branch mnemonic
+  if (Head == "b" && Next != StringRef::npos) {
+    Start = Next;
+    Next = Name.find('.', Start + 1);
+    Head = Name.slice(Start + 1, Next);
+    SMLoc SuffixLoc = SMLoc::getFromPointer(NameLoc.getPointer() +
+                                            (Head.data() - Name.data()));
+    A64CC::CondCode CC = parseCondCodeString(Head);
+    if (CC == A64CC::Invalid)
+      return Error(SuffixLoc, "invalid condition code");
+    Operands.push_back(
+        A64Operand::createToken(".", true, SuffixLoc, getContext()));
+    Operands.push_back(
+        A64Operand::CreateCondCode(CC, NameLoc, NameLoc, getContext()));
+  }
 
   // If there are no more operands, then finish
   if (getLexer().is(AsmToken::EndOfStatement))
     return false;
 
   // Parse first operand
-  if (parseOperand(Operands, Name))
+  if (parseOperand(Operands, Mnemonic))
     return true;
 
   // Parse until end of statement, consuming commas between operands
@@ -754,7 +857,7 @@ bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
     getLexer().Lex();
 
     // Parse next operand
-    if (parseOperand(Operands, Name))
+    if (parseOperand(Operands, Mnemonic))
       return true;
 
     // Handle close square brackets
