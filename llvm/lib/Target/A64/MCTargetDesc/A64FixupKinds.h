@@ -15,8 +15,12 @@ namespace llvm {
 namespace A64 {
 
 enum Fixups {
+  // 12-bit fixup for add/sub instructions. No alignment adjustment. All value
+  // bits are encoded.
+  fixup_a64_add_imm12 = FirstTargetFixupKind,
+
   // The high 19 bits of a 21-bit pc-relative immediate.
-  fixup_a64_pcrel_branch19 = FirstTargetFixupKind,
+  fixup_a64_pcrel_branch19,
 
   // The high 26 bits of a 28-bit pc-relative immediate.
   fixup_a64_pcrel_branch26,

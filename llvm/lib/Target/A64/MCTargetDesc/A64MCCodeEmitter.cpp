@@ -153,23 +153,16 @@ A64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
   if (MO.isImm())
     return MO.getImm() | (ShiftVal == 0 ? 0 : (1 << ShiftVal));
   assert(MO.isExpr() && "Unable to encode MCOperand!");
-  // TODO deal with fixups
-  // const MCExpr *Expr = MO.getExpr();
-  // // Encode the 12 bits of the fixup.
-  // MCFixupKind Kind = MCFixupKind(A64::fixup_a64_add_imm12);
-  // Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
+  const MCExpr *Expr = MO.getExpr();
 
-  // ++MCNumFixups;
+  // Encode the 12 bits of the fixup.
+  MCFixupKind Kind = MCFixupKind(A64::fixup_a64_add_imm12);
+  Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
 
-  // // Set the shift bit of the add instruction for relocation types
-  // // R_AARCH64_TLSLE_ADD_TPREL_HI12 and R_AARCH64_TLSLD_ADD_DTPREL_HI12.
-  // if (const A64MCExpr *A64E = dyn_cast<A64MCExpr>(Expr)) {
-  //   A64MCExpr::VariantKind RefKind = A64E->getKind();
-  //   if (RefKind == A64MCExpr::VK_TPREL_HI12 ||
-  //       RefKind == A64MCExpr::VK_DTPREL_HI12 ||
-  //       RefKind == A64MCExpr::VK_SECREL_HI12)
-  //     ShiftVal = 12;
-  // }
+  ++MCNumFixups;
+
+  // No support for TLS and secrel
+
   return ShiftVal == 0 ? 0 : (1 << ShiftVal);
 }
 

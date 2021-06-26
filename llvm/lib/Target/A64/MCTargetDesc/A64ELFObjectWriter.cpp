@@ -47,6 +47,10 @@ unsigned A64ELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
   unsigned Kind = Fixup.getTargetKind();
   if (Kind >= FirstLiteralRelocationKind)
     return Kind - FirstLiteralRelocationKind;
+  A64MCExpr::VariantKind RefKind =
+      static_cast<A64MCExpr::VariantKind>(Target.getRefKind());
+  A64MCExpr::VariantKind SymLoc = A64MCExpr::getSymbolLoc(RefKind);
+  bool IsNC = A64MCExpr::isNotChecked(RefKind);
 
   assert((!Target.getSymA() ||
           Target.getSymA()->getKind() == MCSymbolRefExpr::VK_None ||
@@ -89,6 +93,12 @@ unsigned A64ELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
       return ELF::R_A64_ABS32;
     case FK_Data_8:
       return ELF::R_A64_ABS64;
+    case A64::fixup_a64_add_imm12:
+      if (SymLoc == A64MCExpr::VK_ABS && IsNC)
+        return ELF::R_A64_ADD_ABS_LO12_NC;
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for add (uimm12) instruction");
+      return ELF::R_A64_NONE;
     default:
       Ctx.reportError(Fixup.getLoc(), "Unknown ELF relocation type");
       return ELF::R_A64_NONE;

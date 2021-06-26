@@ -339,17 +339,21 @@ public:
       Expr = getImm();
     }
 
-    // TODO handle symbol refkind
+    A64MCExpr::VariantKind ELFRefKind;
+    MCSymbolRefExpr::VariantKind DarwinRefKind;
+    int64_t Addend;
+    if (A64AsmParser::classifySymbolRef(Expr, ELFRefKind,
+                                          DarwinRefKind, Addend)) {
+      return ELFRefKind == A64MCExpr::VK_LO12;
+    }
 
     // If it's a constant, it should be a real immediate in range.
     if (auto ShiftedVal = getShiftedVal<12>())
       return ShiftedVal->first >= 0 && ShiftedVal->first <= 0xfff;
 
-    // TODO handle expressions in fixup
-    return false;
     // If it's an expression, we hope for the best and let the fixup/relocation
     // code deal with it.
-    // return true;
+    return true;
   }
 
   bool isAddSubImmNeg() const {
@@ -373,14 +377,31 @@ public:
     return (Val >= N && Val <= M);
   }
 
+  bool isSymbolicUImm12Offset(const MCExpr *Expr) const {
+    A64MCExpr::VariantKind ELFRefKind;
+    MCSymbolRefExpr::VariantKind DarwinRefKind;
+    int64_t Addend;
+    if (!A64AsmParser::classifySymbolRef(Expr, ELFRefKind, DarwinRefKind,
+                                         Addend)) {
+      // If we don't understand the expression, assume the best and
+      // let the fixup and relocation code deal with it.
+      return true;
+    }
+
+    if (DarwinRefKind == MCSymbolRefExpr::VK_PAGEOFF ||
+        ELFRefKind == A64MCExpr::VK_LO12)
+      return true;
+
+    return false;
+  }
+
   template <int Scale> bool isUImm12Offset() const {
     if (!isImm())
       return false;
 
     const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
-    // TODO support symbolic operands
-    // if (!MCE)
-    //  return isSymbolicUImm12Offset(getImm());
+    if (!MCE)
+      return isSymbolicUImm12Offset(getImm());
 
     int64_t Val = MCE->getValue();
     return (Val % Scale) == 0 && Val >= 0 && (Val / Scale) < 0x1000;
@@ -736,7 +757,12 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
   switch (getLexer().getKind()) {
   default: {
     SMLoc S = getLoc();
-    return Error(S, "invalid operand");
+    const MCExpr *Expr;
+    if (parseSymbolicImmVal(Expr))
+      return Error(S, "invalid operand");
+    SMLoc E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
+    Operands.push_back(A64Operand::CreateImm(Expr, S, E, getContext()));
+    return false;
   }
   case AsmToken::Identifier: {
     if (parseRegister(Operands) == MatchOperand_Success)
@@ -775,7 +801,7 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     parseOptionalToken(AsmToken::Hash);
 
     const MCExpr *ImmVal;
-    if (getParser().parseExpression(ImmVal))
+    if (parseSymbolicImmVal(ImmVal))
       return true;
 
     E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
@@ -1039,14 +1065,35 @@ A64AsmParser::tryParseImmWithOptionalShift(OperandVector &Operands) {
 }
 
 bool A64AsmParser::parseSymbolicImmVal(const MCExpr *&ImmVal) {
-  if (parseOptionalToken(AsmToken::Colon))
-    llvm_unreachable("TODO not implemented yet");
+  MCAsmParser &Parser = getParser();
+  bool HasELFModifier = false;
+  A64MCExpr::VariantKind RefKind;
+
+  if (parseOptionalToken(AsmToken::Colon)) {
+    HasELFModifier = true;
+
+    if (Parser.getTok().isNot(AsmToken::Identifier))
+      return TokError("expect relocation specifier in operand after ':'");
+
+    std::string LowerCase = Parser.getTok().getIdentifier().lower();
+    RefKind = StringSwitch<A64MCExpr::VariantKind>(LowerCase)
+                  .Case("lo12", A64MCExpr::VK_LO12)
+                  .Default(A64MCExpr::VK_INVALID);
+
+    if (RefKind == A64MCExpr::VK_INVALID)
+      return TokError("expect relocation specifier in operand ':'");
+
+    Parser.Lex(); // Eat identifier
+
+    if (parseToken(AsmToken::Colon, "expect ':' after relocation specifier"))
+      return true;
+  }
 
   if (getParser().parseExpression(ImmVal))
     return true;
 
-  // if (HasELFModifier)
-  //  ImmVal = A64MCExpr::create(ImmVal, RefKind, getContext());
+  if (HasELFModifier)
+    ImmVal = A64MCExpr::create(ImmVal, RefKind, getContext());
 
   return false;
 }
