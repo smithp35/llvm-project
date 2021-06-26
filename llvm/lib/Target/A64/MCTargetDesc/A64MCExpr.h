@@ -44,6 +44,7 @@ public:
     // of relocation specifiers. Note that this means the "_NC" is sometimes
     // omitted in line with assembly syntax here (VK_LO12 rather than VK_LO12_NC
     // since a user would write ":lo12:").
+    VK_CALL              = VK_ABS,
     VK_LO12 = VK_ABS | VK_PAGEOFF | VK_NC,
 
     VK_INVALID = 0xfff

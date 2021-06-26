@@ -168,7 +168,6 @@ A64MCCodeEmitter::getAddSubImmOpValue(const MCInst &MI, unsigned OpIdx,
 
 /// getAdrLabelOpValue - Return encoding info for 21-bit immediate ADR label
 /// target.
-/// TODO: fixups
 uint32_t
 A64MCCodeEmitter::getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
                                      SmallVectorImpl<MCFixup> &Fixups,
@@ -178,15 +177,14 @@ A64MCCodeEmitter::getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
   // If the destination is an immediate, we have nothing to do.
   if (MO.isImm())
     return MO.getImm();
-  // assert(MO.isExpr() && "Unexpected target type!");
-  // const MCExpr *Expr = MO.getExpr();
+  assert(MO.isExpr() && "Unexpected target type!");
+  const MCExpr *Expr = MO.getExpr();
 
-  // MCFixupKind Kind = MI.getOpcode() == A64::ADR
-  //                        ? MCFixupKind(A64::fixup_aarch64_pcrel_adr_imm21)
-  //                        : MCFixupKind(A64::fixup_aarch64_pcrel_adrp_imm21);
-  // Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
+  MCFixupKind Kind =
+    MCFixupKind(A64::fixup_a64_pcrel_adr_imm21);
+  Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
 
-  // MCNumFixups += 1;
+  MCNumFixups += 1;
 
   // All of the information is in the fixup.
   return 0;

@@ -44,6 +44,7 @@ public:
         // in A64FixupKinds.h.
         //
         // Name                           Offset (bits) Size (bits)     Flags
+        {"fixup_64_pcrel_adr_imm21", 0, 32, PCRelFlagVal},
         {"fixup_a64_add_imm12", 10, 12, 0},
         {"fixup_a64_pcrel_branch19", 5, 19, PCRelFlagVal},
         {"fixup_a64_pcrel_branch26", 0, 26, PCRelFlagVal},
@@ -96,6 +97,7 @@ static unsigned getFixupKindNumBytes(unsigned Kind) {
   case A64::fixup_a64_pcrel_branch19:
     return 3;
 
+  case A64::fixup_a64_pcrel_adr_imm21:
   case A64::fixup_a64_pcrel_branch26:
   case A64::fixup_a64_pcrel_call26:
   case FK_Data_4:
@@ -107,6 +109,12 @@ static unsigned getFixupKindNumBytes(unsigned Kind) {
   }
 }
 
+static unsigned AdrImmBits(unsigned Value) {
+  unsigned lo2 = Value & 0x3;
+  unsigned hi19 = (Value & 0x1ffffc) >> 2;
+  return (hi19 << 5) | (lo2 << 29);
+}
+
 static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
                                  uint64_t Value, MCContext &Ctx,
                                  const Triple &TheTriple, bool IsResolved) {
@@ -114,6 +122,10 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
   switch (Fixup.getTargetKind()) {
   default:
     llvm_unreachable("Unknown fixup kind!");
+  case A64::fixup_a64_pcrel_adr_imm21:
+    if (SignedValue > 2097151 || SignedValue < -2097152)
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    return AdrImmBits(Value & 0x1fffffULL);
   case A64::fixup_a64_add_imm12:
     if (Value >= 0x1000)
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");

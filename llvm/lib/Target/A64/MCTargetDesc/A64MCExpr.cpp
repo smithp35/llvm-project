@@ -29,6 +29,7 @@ const A64MCExpr *A64MCExpr::create(const MCExpr *Expr, VariantKind Kind,
 
 StringRef A64MCExpr::getVariantKindName() const {
   switch (static_cast<uint32_t>(getKind())) {
+  case VK_CALL:                return "";
   case VK_LO12:                return ":lo12:";
   default:
     llvm_unreachable("Invalid ELF symbol kind");
