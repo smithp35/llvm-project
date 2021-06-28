@@ -96,8 +96,23 @@ def : InstAlias<"mvn $Xd, $Xm", (ORNrXrs GPR64:$Xd, XZR, GPR64:$Xm, 0), 3>;
 
 def MOVK : MovImm<0b11, "movk">;
 def MOVN : MovImm<0b00, "movn">;
-/// TODO need a post encoder when symbolic expressions supported.
+/// TODO need a post encoder when signed symbolic expressions supported.
 def MOVZ : MovImm<0b10, "movz">;
+
+def : InstAlias<"movz $Rd, $sym", (MOVZ GPR64:$Rd, movw_symbol_g3:$sym, 48)>;
+def : InstAlias<"movz $Rd, $sym", (MOVZ GPR64:$Rd, movw_symbol_g2:$sym, 32)>;
+def : InstAlias<"movz $Rd, $sym", (MOVZ GPR64:$Rd, movw_symbol_g1:$sym, 16)>;
+def : InstAlias<"movz $Rd, $sym", (MOVZ GPR64:$Rd, movw_symbol_g0:$sym, 0)>;
+
+def : InstAlias<"movn $Rd, $sym", (MOVN GPR64:$Rd, movw_symbol_g3:$sym, 48)>;
+def : InstAlias<"movn $Rd, $sym", (MOVN GPR64:$Rd, movw_symbol_g2:$sym, 32)>;
+def : InstAlias<"movn $Rd, $sym", (MOVN GPR64:$Rd, movw_symbol_g1:$sym, 16)>;
+def : InstAlias<"movn $Rd, $sym", (MOVN GPR64:$Rd, movw_symbol_g0:$sym, 0)>;
+
+def : InstAlias<"movk $Rd, $sym", (MOVK GPR64:$Rd, movw_symbol_g3:$sym, 48)>;
+def : InstAlias<"movk $Rd, $sym", (MOVK GPR64:$Rd, movw_symbol_g2:$sym, 32)>;
+def : InstAlias<"movk $Rd, $sym", (MOVK GPR64:$Rd, movw_symbol_g1:$sym, 16)>;
+def : InstAlias<"movk $Rd, $sym", (MOVK GPR64:$Rd, movw_symbol_g0:$sym, 0)>;
 
 // First group of aliases covers an implicit "lsl #0".
 // TODO AArch64 uses a different operand with a predicate, we don't need

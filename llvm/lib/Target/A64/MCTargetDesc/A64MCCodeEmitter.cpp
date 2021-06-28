@@ -287,12 +287,11 @@ A64MCCodeEmitter::getMoveWideImmOpValue(const MCInst &MI, unsigned OpIdx,
   if (MO.isImm())
     return MO.getImm();
   assert(MO.isExpr() && "Unexpected movz/movk immediate");
-  // TODO support fixups
-  //  Fixups.push_back(MCFixup::create(
-  //    0, MO.getExpr(), MCFixupKind(AArch64::fixup_aarch64_movw),
-  //    MI.getLoc()));
 
-  //++MCNumFixups;
+  Fixups.push_back(MCFixup::create(
+      0, MO.getExpr(), MCFixupKind(A64::fixup_a64_movw), MI.getLoc()));
+
+  ++MCNumFixups;
 
   return 0;
 }

@@ -14,6 +14,7 @@
 #include "MCTargetDesc/A64ELFStreamer.h"
 #include "MCTargetDesc/A64InstPrinter.h"
 #include "MCTargetDesc/A64MCAsmInfo.h"
+#include "MCTargetDesc/A64MCExpr.h"
 #include "TargetInfo/A64TargetInfo.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmInfo.h"

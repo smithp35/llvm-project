@@ -383,6 +383,42 @@ class A64PseudoInst<dag outs, dag ins, list<dag> pattern, string asmstr = "">
 }
 
 // Move immediate
+def MovWSymbolG3AsmOperand : AsmOperandClass {
+  let Name = "MovWSymbolG3";
+  let RenderMethod = "addImmOperands";
+}
+
+def movw_symbol_g3 : Operand<i32> {
+  let ParserMatchClass = MovWSymbolG3AsmOperand;
+}
+
+def MovWSymbolG2AsmOperand : AsmOperandClass {
+  let Name = "MovWSymbolG2";
+  let RenderMethod = "addImmOperands";
+}
+
+def movw_symbol_g2 : Operand<i32> {
+  let ParserMatchClass = MovWSymbolG2AsmOperand;
+}
+
+def MovWSymbolG1AsmOperand : AsmOperandClass {
+  let Name = "MovWSymbolG1";
+  let RenderMethod = "addImmOperands";
+}
+
+def movw_symbol_g1 : Operand<i32> {
+  let ParserMatchClass = MovWSymbolG1AsmOperand;
+}
+
+def MovWSymbolG0AsmOperand : AsmOperandClass {
+  let Name = "MovWSymbolG0";
+  let RenderMethod = "addImmOperands";
+}
+
+def movw_symbol_g0 : Operand<i32> {
+  let ParserMatchClass = MovWSymbolG0AsmOperand;
+}
+
 def MovImm64ShifterOperand : AsmOperandClass {
   let SuperClasses = [ShifterOperand];
   let Name = "MovImm64Shifter";

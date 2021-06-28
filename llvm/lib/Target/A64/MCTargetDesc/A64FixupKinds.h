@@ -30,6 +30,9 @@ enum Fixups {
   // generates relocations directly when necessary.
   fixup_a64_ldr_pcrel_imm19,
 
+  // Map to the group relocations
+  fixup_a64_movw,
+
   // The high 19 bits of a 21-bit pc-relative immediate.
   fixup_a64_pcrel_branch19,
 

@@ -112,6 +112,31 @@ unsigned A64ELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
       Ctx.reportError(Fixup.getLoc(),
                       "invalid fixup for 64-bit load/store instruction");
       return ELF::R_A64_NONE;
+    case A64::fixup_a64_movw:
+      if (RefKind == A64MCExpr::VK_ABS_G3)
+        return ELF::R_A64_MOVW_UABS_G3;
+      if (RefKind == A64MCExpr::VK_ABS_G2)
+        return ELF::R_A64_MOVW_UABS_G2;
+      if (RefKind == A64MCExpr::VK_ABS_G2_S)
+        return ELF::R_A64_MOVW_SABS_G2;
+      if (RefKind == A64MCExpr::VK_ABS_G2_NC)
+        return ELF::R_A64_MOVW_UABS_G2_NC;
+      if (RefKind == A64MCExpr::VK_ABS_G1)
+        return ELF::R_A64_MOVW_UABS_G1;
+      if (RefKind == A64MCExpr::VK_ABS_G1_S)
+        return ELF::R_A64_MOVW_SABS_G1;
+      if (RefKind == A64MCExpr::VK_ABS_G1_NC)
+        return ELF::R_A64_MOVW_UABS_G1_NC;
+      if (RefKind == A64MCExpr::VK_ABS_G0)
+        return ELF::R_A64_MOVW_UABS_G0;
+      if (RefKind == A64MCExpr::VK_ABS_G0_S)
+        return ELF::R_A64_MOVW_SABS_G0;
+      if (RefKind == A64MCExpr::VK_ABS_G0_NC)
+        return ELF::R_A64_MOVW_UABS_G0_NC;
+      else {
+        Ctx.reportError(Fixup.getLoc(), "Unknown expression for mov");
+        return ELF::R_A64_NONE;
+      }
     default:
       Ctx.reportError(Fixup.getLoc(), "Unknown ELF relocation type");
       return ELF::R_A64_NONE;

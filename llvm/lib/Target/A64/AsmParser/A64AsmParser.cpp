@@ -287,6 +287,46 @@ public:
     return (Val == 0 || Val == 16 || Val == 32 || Val == 48);
   }
 
+  bool
+  isMovWSymbol(ArrayRef<A64MCExpr::VariantKind> AllowedModifiers) const {
+    if (!isImm())
+      return false;
+
+    A64MCExpr::VariantKind ELFRefKind;
+    MCSymbolRefExpr::VariantKind DarwinRefKind;
+    int64_t Addend;
+    if (!A64AsmParser::classifySymbolRef(getImm(), ELFRefKind,
+                                         DarwinRefKind, Addend)) {
+      return false;
+    }
+    if (DarwinRefKind != MCSymbolRefExpr::VK_None)
+      return false;
+
+    for (unsigned i = 0; i != AllowedModifiers.size(); ++i) {
+      if (ELFRefKind == AllowedModifiers[i])
+        return true;
+    }
+
+    return false;
+  }
+
+  bool isMovWSymbolG3() const { return isMovWSymbol({A64MCExpr::VK_ABS_G3}); }
+
+  bool isMovWSymbolG2() const {
+    return isMovWSymbol({A64MCExpr::VK_ABS_G2, A64MCExpr::VK_ABS_G2_S,
+                         A64MCExpr::VK_ABS_G2_NC});
+  }
+
+  bool isMovWSymbolG1() const {
+    return isMovWSymbol({A64MCExpr::VK_ABS_G1, A64MCExpr::VK_ABS_G1_S,
+                         A64MCExpr::VK_ABS_G1_NC});
+  }
+
+  bool isMovWSymbolG0() const {
+    return isMovWSymbol({A64MCExpr::VK_ABS_G0, A64MCExpr::VK_ABS_G0_S,
+                         A64MCExpr::VK_ABS_G0_NC});
+  }
+
   bool isCondCode() const { return Kind == k_CondCode; }
 
   template <int N> bool isBranchTarget() const {
@@ -1078,6 +1118,16 @@ bool A64AsmParser::parseSymbolicImmVal(const MCExpr *&ImmVal) {
     std::string LowerCase = Parser.getTok().getIdentifier().lower();
     RefKind = StringSwitch<A64MCExpr::VariantKind>(LowerCase)
                   .Case("lo12", A64MCExpr::VK_LO12)
+                  .Case("abs_g3", A64MCExpr::VK_ABS_G3)
+                  .Case("abs_g2", A64MCExpr::VK_ABS_G2)
+                  .Case("abs_g2_s", A64MCExpr::VK_ABS_G2_S)
+                  .Case("abs_g2_nc", A64MCExpr::VK_ABS_G2_NC)
+                  .Case("abs_g1", A64MCExpr::VK_ABS_G1)
+                  .Case("abs_g1_s", A64MCExpr::VK_ABS_G1_S)
+                  .Case("abs_g1_nc", A64MCExpr::VK_ABS_G1_NC)
+                  .Case("abs_g0", A64MCExpr::VK_ABS_G0)
+                  .Case("abs_g0_s", A64MCExpr::VK_ABS_G0_S)
+                  .Case("abs_g0_nc", A64MCExpr::VK_ABS_G0_NC)
                   .Default(A64MCExpr::VK_INVALID);
 
     if (RefKind == A64MCExpr::VK_INVALID)

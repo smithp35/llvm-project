@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/A64FixupKinds.h"
+#include "MCTargetDesc/A64MCExpr.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCAsmBackend.h"
@@ -15,6 +16,7 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCFixupKindInfo.h"
+#include "llvm/MC/MCValue.h"
 #include "llvm/Support/EndianStream.h"
 
 using namespace llvm;
@@ -48,6 +50,7 @@ public:
         {"fixup_a64_add_imm12", 10, 12, 0},
         {"fixup_a64_ldst_imm12_scale8", 10, 12, 0},
         {"fixup_a64_ldr_pcrel_imm19", 5, 19, PCRelFlagVal},
+        {"fixup_a64_movw", 5, 16, 0},
         {"fixup_a64_pcrel_branch19", 5, 19, PCRelFlagVal},
         {"fixup_a64_pcrel_branch26", 0, 26, PCRelFlagVal},
         {"fixup_a64_pcrel_call26", 0, 26, PCRelFlagVal}};
@@ -98,6 +101,7 @@ static unsigned getFixupKindNumBytes(unsigned Kind) {
   case A64::fixup_a64_add_imm12:
   case A64::fixup_a64_ldst_imm12_scale8:
   case A64::fixup_a64_ldr_pcrel_imm19:
+  case A64::fixup_a64_movw:
   case A64::fixup_a64_pcrel_branch19:
     return 3;
 
@@ -150,6 +154,55 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
       Ctx.reportError(Fixup.getLoc(), "fixup not sufficiently aligned");
     // Low two bits are not encoded.
     return (Value >> 2) & 0x7ffff;
+  case A64::fixup_a64_movw: {
+    A64MCExpr::VariantKind RefKind =
+        static_cast<A64MCExpr::VariantKind>(Target.getRefKind());
+    if (A64MCExpr::getSymbolLoc(RefKind) != A64MCExpr::VK_ABS) {
+      if (!RefKind) {
+        // The fixup is an expression
+        if (SignedValue > 0xFFFF || SignedValue < -0xFFFF)
+          Ctx.reportError(Fixup.getLoc(),
+                          "fixup value out of range [-0xFFFF, 0xFFFF]");
+
+        // Invert the negative immediate because it will feed into a MOVN.
+        if (SignedValue < 0)
+          SignedValue = ~SignedValue;
+        Value = static_cast<uint64_t>(SignedValue);
+      } else
+        Ctx.reportError(Fixup.getLoc(), "unknown expression type for fixup");
+      return Value;
+    }
+
+    if (!IsResolved) {
+      Ctx.reportError(Fixup.getLoc(), "unresolved movw fixup not yet "
+                                      "implemented.");
+      return Value;
+    }
+
+    // VK_ABS
+    switch (A64MCExpr::getAddressFrag(RefKind)) {
+    case A64MCExpr::VK_G0:
+      break;
+    case A64MCExpr::VK_G1:
+      Value = Value >> 16;
+      break;
+    case A64MCExpr::VK_G2:
+      Value = Value >> 32;
+      break;
+    case A64MCExpr::VK_G3:
+      Value = Value >> 48;
+      break;
+    default:
+      llvm_unreachable("Variant kind doesn't correspond to fixup");
+    }
+
+    if (RefKind & A64MCExpr::VK_NC) {
+      Value &= 0xFFFF;
+    } else if (Value > 0xFFFF) {
+      Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
+    }
+    return Value;
+  }
   case A64::fixup_a64_pcrel_branch26:
   case A64::fixup_a64_pcrel_call26:
     // Signed 28-bit immediate
@@ -182,6 +235,7 @@ void A64AsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
   unsigned NumBytes = getFixupKindNumBytes(Kind);
   MCFixupKindInfo Info = getFixupKindInfo(Fixup.getKind());
   MCContext &Ctx = Asm.getContext();
+  int64_t SignedValue = static_cast<int64_t>(Value);
   // Apply any target-specific value adjustments.
   Value = adjustFixupValue(Fixup, Target, Value, Ctx, TheTriple, IsResolved);
 
@@ -194,6 +248,17 @@ void A64AsmBackend::applyFixup(const MCAssembler &Asm, const MCFixup &Fixup,
   // Little endian only
   for (unsigned i = 0; i != NumBytes; ++i)
     Data[Offset + i] |= uint8_t((Value >> (i * 8)) & 0xff);
+
+  A64MCExpr::VariantKind RefKind =
+      static_cast<A64MCExpr::VariantKind>(Target.getRefKind());
+  if (!RefKind && Fixup.getTargetKind() == A64::fixup_a64_movw) {
+    // If the immediate is negative, generate MOVN else MOVZ.
+    // (Bit 30 = 0) ==> MOVN, (Bit 30 = 1) ==> MOVZ.
+    if (SignedValue < 0)
+      Data[Offset + 3] &= ~(1 << 6);
+    else
+      Data[Offset + 3] |= (1 << 6);
+  }
 }
 
 bool A64AsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,

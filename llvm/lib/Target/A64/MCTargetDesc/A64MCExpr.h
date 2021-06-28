@@ -26,12 +26,18 @@ public:
     // performed to construct the final address for the relocated
     // symbol. E.g. direct, via the GOT, ...
     VK_ABS = 0x001,
+    VK_SABS = 0x002,
     VK_SymLocBits = 0x00f,
 
     // Variants specifying which part of the final address calculation is
     // used. E.g. the low 12 bits for an ADD/LDR, the middle 16 bits for a
     // MOVZ/MOVK.
     VK_PAGEOFF = 0x020,
+    VK_G0       = 0x040,
+    VK_G1       = 0x050,
+    VK_G2       = 0x060,
+    VK_G3       = 0x070,
+    VK_AddressFragBits = 0x0f0,
 
     // Whether the final relocation is a checked one (where a linker should
     // perform a range-check on the final address) or not. Note that this field
@@ -45,6 +51,16 @@ public:
     // omitted in line with assembly syntax here (VK_LO12 rather than VK_LO12_NC
     // since a user would write ":lo12:").
     VK_CALL              = VK_ABS,
+    VK_ABS_G3            = VK_ABS      | VK_G3,
+    VK_ABS_G2            = VK_ABS      | VK_G2,
+    VK_ABS_G2_S          = VK_SABS     | VK_G2,
+    VK_ABS_G2_NC         = VK_ABS      | VK_G2      | VK_NC,
+    VK_ABS_G1            = VK_ABS      | VK_G1,
+    VK_ABS_G1_S          = VK_SABS     | VK_G1,
+    VK_ABS_G1_NC         = VK_ABS      | VK_G1      | VK_NC,
+    VK_ABS_G0            = VK_ABS      | VK_G0,
+    VK_ABS_G0_S          = VK_SABS     | VK_G0,
+    VK_ABS_G0_NC         = VK_ABS      | VK_G0      | VK_NC,
     VK_LO12 = VK_ABS | VK_PAGEOFF | VK_NC,
 
     VK_INVALID = 0xfff
@@ -76,6 +92,10 @@ public:
 
   static VariantKind getSymbolLoc(VariantKind Kind) {
     return static_cast<VariantKind>(Kind & VK_SymLocBits);
+  }
+
+  static VariantKind getAddressFrag(VariantKind Kind) {
+    return static_cast<VariantKind>(Kind & VK_AddressFragBits);
   }
 
   static bool isNotChecked(VariantKind Kind) { return Kind & VK_NC; }

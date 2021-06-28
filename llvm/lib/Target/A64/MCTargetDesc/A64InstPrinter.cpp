@@ -46,6 +46,30 @@ void A64InstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 void A64InstPrinter::printInst(const MCInst *MI, uint64_t Address,
                                StringRef Annot, const MCSubtargetInfo &STI,
                                raw_ostream &O) {
+  // Check for special encodings and print the canonical alias instead.
+  unsigned Opcode = MI->getOpcode();
+
+  // Symbolic operands for MOVZ, MOVN and MOVK already imply a shift
+  // (e.g. :gottprel_g1: is always going to be "lsl #16") so it should not be
+  // printed.
+  if ((Opcode == A64::MOVZ || Opcode == A64::MOVN) &&
+      MI->getOperand(1).isExpr()) {
+    if (Opcode == A64::MOVZ)
+      O << "\tmovz\t";
+    else
+      O << "\tmovn\t";
+
+    O << getRegisterName(MI->getOperand(0).getReg()) << ", #";
+    MI->getOperand(1).getExpr()->print(O, &MAI);
+    return;
+  }
+
+  if ((Opcode == A64::MOVK) && MI->getOperand(2).isExpr()) {
+    O << "\tmovk\t" << getRegisterName(MI->getOperand(0).getReg()) << ", #";
+    MI->getOperand(2).getExpr()->print(O, &MAI);
+    return;
+  }
+
   if (!printAliasInstr(MI, Address, O))
     printInstruction(MI, Address, O);
 
