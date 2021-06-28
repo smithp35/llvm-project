@@ -106,6 +106,12 @@ unsigned A64ELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
       Ctx.reportError(Fixup.getLoc(),
                       "invalid fixup for add (uimm12) instruction");
       return ELF::R_A64_NONE;
+    case A64::fixup_a64_ldst_imm12_scale8:
+      if (SymLoc == A64MCExpr::VK_ABS && IsNC)
+        return ELF::R_A64_LDST64_ABS_LO12_NC;
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid fixup for 64-bit load/store instruction");
+      return ELF::R_A64_NONE;
     default:
       Ctx.reportError(Fixup.getLoc(), "Unknown ELF relocation type");
       return ELF::R_A64_NONE;

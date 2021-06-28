@@ -259,7 +259,6 @@ A64MCCodeEmitter::getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
   return 0;
 }
 
-// TODO Add support for fixups.
 uint32_t
 A64MCCodeEmitter::getLdStUImm12OpValue(const MCInst &MI, unsigned OpIdx,
                                        SmallVectorImpl<MCFixup> &Fixups,
@@ -269,12 +268,12 @@ A64MCCodeEmitter::getLdStUImm12OpValue(const MCInst &MI, unsigned OpIdx,
 
   if (MO.isImm())
     ImmVal = static_cast<uint32_t>(MO.getImm());
-  // else {
-  //   assert(MO.isExpr() && "unable to encode load/store imm operand");
-  //   MCFixupKind Kind = MCFixupKind(FixupKind);
-  //   Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
-  //   ++MCNumFixups;
-  // }
+  else {
+    assert(MO.isExpr() && "unable to encode load/store imm operand");
+    MCFixupKind Kind = MCFixupKind(A64::fixup_a64_ldst_imm12_scale8);
+    Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+    ++MCNumFixups;
+  }
 
   return ImmVal;
 }

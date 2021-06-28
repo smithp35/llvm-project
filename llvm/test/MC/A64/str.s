@@ -8,8 +8,8 @@
         str x1, [x2, #0x8]
 
 // CHECK: 0000000000000000 <.text>:
-// CHECK-NEXT: 0: 20 00 00 f9    str     x0, [x1]
-// CHECK-NEXT: 4: 41 04 00 f9    str     x1, [x2, #8]
+// CHECK-NEXT: 0: f9000020    str     x0, [x1]
+// CHECK-NEXT: 4: f9000441    str     x1, [x2, #8]
 
 // CHECK-ASM:      str x0, [x1]     // encoding: [0x20,0x00,0x00,0xf9]
 // CHECK-ASM-NEXT: str x1, [x2, #8] // encoding: [0x41,0x04,0x00,0xf9]

@@ -22,6 +22,9 @@ enum Fixups {
   // bits are encoded.
   fixup_a64_add_imm12,
 
+  // unsigned 12-bit fixups for load and store instructions.
+  fixup_a64_ldst_imm12_scale8,
+
   // The high 19 bits of a 21-bit pc-relative immediate. Same encoding as
   // fixup_aarch64_pcrel_adrhi, except this is used by pc-relative loads and
   // generates relocations directly when necessary.
