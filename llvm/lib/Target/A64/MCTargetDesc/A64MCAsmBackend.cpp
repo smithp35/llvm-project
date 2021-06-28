@@ -46,6 +46,7 @@ public:
         // Name                           Offset (bits) Size (bits)     Flags
         {"fixup_64_pcrel_adr_imm21", 0, 32, PCRelFlagVal},
         {"fixup_a64_add_imm12", 10, 12, 0},
+        {"fixup_a64_ldr_pcrel_imm19", 5, 19, PCRelFlagVal},
         {"fixup_a64_pcrel_branch19", 5, 19, PCRelFlagVal},
         {"fixup_a64_pcrel_branch26", 0, 26, PCRelFlagVal},
         {"fixup_a64_pcrel_call26", 0, 26, PCRelFlagVal}};
@@ -94,6 +95,7 @@ static unsigned getFixupKindNumBytes(unsigned Kind) {
     return 2;
 
   case A64::fixup_a64_add_imm12:
+  case A64::fixup_a64_ldr_pcrel_imm19:
   case A64::fixup_a64_pcrel_branch19:
     return 3;
 
@@ -130,6 +132,7 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
     if (Value >= 0x1000)
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
     return Value;
+  case A64::fixup_a64_ldr_pcrel_imm19:
   case A64::fixup_a64_pcrel_branch19:
     // Signed 21-bit immediate
     if (SignedValue > 2097151 || SignedValue < -2097152)

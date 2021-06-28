@@ -249,11 +249,11 @@ A64MCCodeEmitter::getLoadLiteralOpValue(const MCInst &MI, unsigned OpIdx,
   if (MO.isImm())
     return MO.getImm();
   assert(MO.isExpr() && "Unexpected target type!");
-  // TODO deal with fixups
-  //  MCFixupKind Kind = MCFixupKind(A64::fixup_a64_ldr_pcrel_imm19);
-  //  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
 
-  // ++MCNumFixups;
+  MCFixupKind Kind = MCFixupKind(A64::fixup_a64_ldr_pcrel_imm19);
+  Fixups.push_back(MCFixup::create(0, MO.getExpr(), Kind, MI.getLoc()));
+
+  ++MCNumFixups;
 
   // All of the information is in the fixup.
   return 0;

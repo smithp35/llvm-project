@@ -22,6 +22,11 @@ enum Fixups {
   // bits are encoded.
   fixup_a64_add_imm12,
 
+  // The high 19 bits of a 21-bit pc-relative immediate. Same encoding as
+  // fixup_aarch64_pcrel_adrhi, except this is used by pc-relative loads and
+  // generates relocations directly when necessary.
+  fixup_a64_ldr_pcrel_imm19,
+
   // The high 19 bits of a 21-bit pc-relative immediate.
   fixup_a64_pcrel_branch19,
 
