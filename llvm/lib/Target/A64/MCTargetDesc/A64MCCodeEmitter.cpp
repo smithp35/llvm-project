@@ -180,8 +180,9 @@ A64MCCodeEmitter::getAdrLabelOpValue(const MCInst &MI, unsigned OpIdx,
   assert(MO.isExpr() && "Unexpected target type!");
   const MCExpr *Expr = MO.getExpr();
 
-  MCFixupKind Kind =
-    MCFixupKind(A64::fixup_a64_pcrel_adr_imm21);
+  MCFixupKind Kind = MI.getOpcode() == A64::ADR ?
+    MCFixupKind(A64::fixup_a64_pcrel_adr_imm21) :
+    MCFixupKind(A64::fixup_a64_pcrel_adrp_imm21);
   Fixups.push_back(MCFixup::create(0, Expr, Kind, MI.getLoc()));
 
   MCNumFixups += 1;

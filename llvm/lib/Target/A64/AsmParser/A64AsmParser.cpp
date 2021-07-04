@@ -85,6 +85,7 @@ public:
   bool parseRegister(OperandVector &Operands);
   bool parseSymbolicImmVal(const MCExpr *&ImmVal);
   OperandMatchResultTy tryParseAdrLabel(OperandVector &Operands);
+  OperandMatchResultTy tryParseAdrpLabel(OperandVector &Operands);
   OperandMatchResultTy tryParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                                         SMLoc &EndLoc) override;
   OperandMatchResultTy tryParseOptionalShiftExtend(OperandVector &Operands);
@@ -249,6 +250,22 @@ public:
       int64_t Min = -(1LL << (21 - 1));
       int64_t Max = ((1LL << (21 - 1)) - 1);
       return Val >= Min && Val <= Max;
+    }
+
+    return true;
+  }
+
+  bool isAdrpLabel() const {
+    // Validation was handled during parsing, so we just sanity check that
+    // something didn't go haywire.
+    if (!isImm())
+        return false;
+
+    if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Imm.Val)) {
+      int64_t Val = CE->getValue();
+      int64_t Min = - (4096 * (1LL << (21 - 1)));
+      int64_t Max = 4096 * ((1LL << (21 - 1)) - 1);
+      return (Val % 4096) == 0 && Val >= Min && Val <= Max;
     }
 
     return true;
@@ -473,6 +490,15 @@ public:
 
   void addAdrLabelOperands(MCInst &Inst, unsigned N) const {
     addImmOperands(Inst, N);
+  }
+
+  void addAdrpLabelOperands(MCInst &Inst, unsigned N) const {
+    assert(N == 1 && "Invalid number of operands!");
+    const MCConstantExpr *MCE = dyn_cast<MCConstantExpr>(getImm());
+    if (!MCE)
+      addExpr(Inst, getImm());
+    else
+      Inst.addOperand(MCOperand::createImm(MCE->getValue() >> 12));
   }
 
   void addBranchTarget26Operands(MCInst &Inst, unsigned N) const {
@@ -1181,6 +1207,46 @@ OperandMatchResultTy A64AsmParser::tryParseAdrLabel(OperandVector &Operands) {
 
   SMLoc E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
   Operands.push_back(A64Operand::CreateImm(Expr, S, E, getContext()));
+  return MatchOperand_Success;
+}
+
+/// tryParseAdrpLabel - Parse and validate a source label for the ADRP
+/// instruction.
+OperandMatchResultTy
+A64AsmParser::tryParseAdrpLabel(OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+  SMLoc S = getLoc();
+  const MCExpr *Expr = nullptr;
+
+  if (Parser.getTok().is(AsmToken::Hash)) {
+    Parser.Lex(); // Eat hash token.
+  }
+
+  if (parseSymbolicImmVal(Expr))
+    return MatchOperand_ParseFail;
+
+  A64MCExpr::VariantKind ELFRefKind;
+  MCSymbolRefExpr::VariantKind DarwinRefKind;
+  int64_t Addend;
+  if (classifySymbolRef(Expr, ELFRefKind, DarwinRefKind, Addend)) {
+    if (DarwinRefKind == MCSymbolRefExpr::VK_None &&
+        ELFRefKind == A64MCExpr::VK_INVALID) {
+      // No modifier was specified at all; this is the syntax for an ELF basic
+      // ADRP relocation (unfortunately).
+      Expr =
+          A64MCExpr::create(Expr, A64MCExpr::VK_ABS_PAGE, getContext());
+    } else {
+      Error(S, "modifiers not supported yet");
+      return MatchOperand_ParseFail;
+    }
+  }
+
+  // We have either a label reference possibly with addend or an immediate. The
+  // addend is a raw value here. The linker will adjust it to only reference the
+  // page.
+  SMLoc E = SMLoc::getFromPointer(getLoc().getPointer() - 1);
+  Operands.push_back(A64Operand::CreateImm(Expr, S, E, getContext()));
+
   return MatchOperand_Success;
 }
 

@@ -47,6 +47,7 @@ public:
         //
         // Name                           Offset (bits) Size (bits)     Flags
         {"fixup_64_pcrel_adr_imm21", 0, 32, PCRelFlagVal},
+        {"fixup_64_pcrel_adrp_imm21", 0, 32, PCRelFlagVal},
         {"fixup_a64_add_imm12", 10, 12, 0},
         {"fixup_a64_ldst_imm12_scale8", 10, 12, 0},
         {"fixup_a64_ldr_pcrel_imm19", 5, 19, PCRelFlagVal},
@@ -81,6 +82,9 @@ public:
 
   bool writeNopData(raw_ostream &OS, uint64_t Count,
                     const MCSubtargetInfo *STI) const override;
+
+  bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
+                             const MCValue &Target) override;
 };
 
 } // end anonymous namespace
@@ -106,6 +110,7 @@ static unsigned getFixupKindNumBytes(unsigned Kind) {
     return 3;
 
   case A64::fixup_a64_pcrel_adr_imm21:
+  case A64::fixup_a64_pcrel_adrp_imm21:
   case A64::fixup_a64_pcrel_branch26:
   case A64::fixup_a64_pcrel_call26:
   case FK_Data_4:
@@ -134,6 +139,9 @@ static uint64_t adjustFixupValue(const MCFixup &Fixup, const MCValue &Target,
     if (SignedValue > 2097151 || SignedValue < -2097152)
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
     return AdrImmBits(Value & 0x1fffffULL);
+  case A64::fixup_a64_pcrel_adrp_imm21:
+    assert(!IsResolved);
+    return AdrImmBits((Value & 0x1fffff000ULL) >> 12);
   case A64::fixup_a64_add_imm12:
     if (Value >= 0x1000)
       Ctx.reportError(Fixup.getLoc(), "fixup value out of range");
@@ -284,6 +292,31 @@ bool A64AsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
   for (uint64_t i = 0; i != Count; ++i)
     support::endian::write<uint32_t>(OS, 0xd503201f, support::little);
   return true;
+}
+
+bool A64AsmBackend::shouldForceRelocation(const MCAssembler &Asm,
+                                          const MCFixup &Fixup,
+                                          const MCValue &Target) {
+  unsigned Kind = Fixup.getKind();
+  if (Kind >= FirstLiteralRelocationKind)
+    return true;
+
+  // The ADRP instruction adds some multiple of 0x1000 to the current PC &
+  // ~0xfff. This means that the required offset to reach a symbol can vary by
+  // up to one step depending on where the ADRP is in memory. For example:
+  //
+  //     ADRP x0, there
+  //  there:
+  //
+  // If the ADRP occurs at address 0xffc then "there" will be at 0x1000 and
+  // we'll need that as an offset. At any other address "there" will be in the
+  // same page as the ADRP and the instruction should encode 0x0. Assuming the
+  // section isn't 0x1000-aligned, we therefore need to delegate this decision
+  // to the linker -- a relocation!
+  if (Kind == A64::fixup_a64_pcrel_adrp_imm21)
+    return true;
+
+  return false;
 }
 
 namespace {

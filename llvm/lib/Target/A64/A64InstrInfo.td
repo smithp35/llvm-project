@@ -168,7 +168,9 @@ class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
 def mull : Mulc;
 
 // ADR address generation
-def ADR : ADR;
+def ADR : ADRI<0, "adr", adrlabel>;
+// ADRP paged address generation
+def ADRP : ADRI<1, "adrp", adrplabel>;
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
 def B  : BranchImm<"b">;

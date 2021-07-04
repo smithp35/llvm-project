@@ -178,6 +178,19 @@ def adrlabel : Operand<i64> {
   let ParserMatchClass = AdrOperand;
 }
 
+// ADRP operand
+def AdrpOperand : AsmOperandClass {
+  let Name = "AdrpLabel";
+  let ParserMethod = "tryParseAdrpLabel";
+  let DiagnosticType = "InvalidLabel";
+}
+def adrplabel : Operand<i64> {
+  let EncoderMethod = "getAdrLabelOpValue";
+  let PrintMethod = "printAdrpLabel";
+  let ParserMatchClass = AdrpOperand;
+  let OperandType = "OPERAND_PCREL";
+}
+
 //===----------------------------------------------------------------------===//
 //  Describe A64 instructions format here
 //
@@ -511,12 +524,13 @@ multiclass StoreUI<bit V, bits<2> opc,
 // Address generation.
 //---
 
-class ADR
-    : A64Inst<(outs GPR64:$xd), (ins adrlabel:$label), "adr \t$xd, $label",
+class ADRI<bit op, string opstr, Operand labelop>
+    : A64Inst<(outs GPR64:$xd), (ins labelop:$label),
+              !strconcat(opstr, "\t$xd, $label"),
               []> {
   bits<5>  xd;
   bits<21> label;
-  let Inst{31}    = 0b0; // Hard code to ADR
+  let Inst{31}    = op;
   let Inst{30-29} = label{1-0};
   let Inst{28-24} = 0b10000;
   let Inst{23-5}  = label{20-2};

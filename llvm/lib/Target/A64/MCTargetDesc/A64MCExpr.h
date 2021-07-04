@@ -32,7 +32,8 @@ public:
     // Variants specifying which part of the final address calculation is
     // used. E.g. the low 12 bits for an ADD/LDR, the middle 16 bits for a
     // MOVZ/MOVK.
-    VK_PAGEOFF = 0x020,
+    VK_PAGE     = 0x010,
+    VK_PAGEOFF  = 0x020,
     VK_G0       = 0x040,
     VK_G1       = 0x050,
     VK_G2       = 0x060,
@@ -51,6 +52,7 @@ public:
     // omitted in line with assembly syntax here (VK_LO12 rather than VK_LO12_NC
     // since a user would write ":lo12:").
     VK_CALL              = VK_ABS,
+    VK_ABS_PAGE          = VK_ABS      | VK_PAGE,
     VK_ABS_G3            = VK_ABS      | VK_G3,
     VK_ABS_G2            = VK_ABS      | VK_G2,
     VK_ABS_G2_S          = VK_SABS     | VK_G2,

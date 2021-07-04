@@ -30,6 +30,7 @@ const A64MCExpr *A64MCExpr::create(const MCExpr *Expr, VariantKind Kind,
 StringRef A64MCExpr::getVariantKindName() const {
   switch (static_cast<uint32_t>(getKind())) {
   case VK_CALL:                return "";
+  case VK_ABS_PAGE:            return "";
   case VK_LO12:                return ":lo12:";
   case VK_ABS_G3:              return ":abs_g3:";
   case VK_ABS_G2:              return ":abs_g2:";

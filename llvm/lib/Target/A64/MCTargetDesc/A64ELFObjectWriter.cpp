@@ -77,6 +77,12 @@ unsigned A64ELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
         Ctx.reportError(Fixup.getLoc(),
                         "invalid symbol kind for ADR relocation");
       return ELF::R_A64_ADR_PREL_LO21;
+    case A64::fixup_a64_pcrel_adrp_imm21:
+      if (SymLoc == A64MCExpr::VK_ABS)
+        return ELF::R_AARCH64_ADR_PREL_PG_HI21;
+      Ctx.reportError(Fixup.getLoc(),
+                      "invalid symbol kind for ADRP relocation");
+      return ELF::R_AARCH64_NONE;
     case A64::fixup_a64_ldr_pcrel_imm19:
       return ELF::R_A64_LD_PREL_LO19;
     case A64::fixup_a64_pcrel_branch26:

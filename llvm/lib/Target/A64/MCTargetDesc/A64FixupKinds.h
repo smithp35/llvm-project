@@ -18,6 +18,9 @@ enum Fixups {
   // A 21-bit pc-relative immediate inserted into an ADR instruction.
   fixup_a64_pcrel_adr_imm21 = FirstTargetFixupKind,
 
+  // A 21-bit pc-relative immediate inserted into an ADRP instruction.
+  fixup_a64_pcrel_adrp_imm21,
+
   // 12-bit fixup for add/sub instructions. No alignment adjustment. All value
   // bits are encoded.
   fixup_a64_add_imm12,
