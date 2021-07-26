@@ -38,6 +38,9 @@ public:
   // attributes of each function.
   const A64Subtarget *getSubtargetImpl() const = delete;
 
+  // Pass Pipeline Configuration
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+
   TargetLoweringObjectFile *getObjFileLowering() const override {
     return TLOF.get();
   }

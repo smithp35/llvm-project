@@ -13,9 +13,11 @@
 #include "A64TargetObjectFile.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "TargetInfo/A64TargetInfo.h"
+#include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/MC/TargetRegistry.h"
+#include "llvm/Support/CodeGen.h"
 
 using namespace llvm;
 
@@ -84,4 +86,28 @@ A64TargetMachine::getSubtargetImpl(const Function &F) const {
     I = std::make_unique<A64Subtarget>(TargetTriple, CPU, FS, *this);
   }
   return I.get();
+}
+
+namespace {
+
+/// A64 Code Generator Pass Configuration Options.
+class A64PassConfig : public TargetPassConfig {
+public:
+  A64PassConfig(A64TargetMachine &TM, PassManagerBase &PM)
+      : TargetPassConfig(TM, PM) {}
+
+  A64TargetMachine &getA64TargetMachine() const {
+    return getTM<A64TargetMachine>();
+  }
+
+  bool addInstSelector() override {
+    addPass(createA64ISelDag(getA64TargetMachine(), getOptLevel()));
+    return false;
+  }
+};
+} // end anonymous namespace
+
+TargetPassConfig *
+A64TargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new A64PassConfig(*this, PM);
 }

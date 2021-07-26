@@ -14,6 +14,7 @@
 #ifndef LLVM_LIB_TARGET_A64_A64_H
 #define LLVM_LIB_TARGET_A64_A64_H
 
+#include "A64.h"
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"

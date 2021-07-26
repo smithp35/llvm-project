@@ -4,6 +4,7 @@ set(LLVM_TARGET_DEFINITIONS A64.td)
 
 tablegen(LLVM A64GenAsmMatcher.inc -gen-asm-matcher)
 tablegen(LLVM A64GenAsmWriter.inc -gen-asm-writer)
+tablegen(LLVM A64GenDAGISel.inc -gen-dag-isel)
 tablegen(LLVM A64GenDisassemblerTables.inc -gen-disassembler)
 tablegen(LLVM A64GenRegisterInfo.inc -gen-register-info)
 tablegen(LLVM A64GenSubtargetInfo.inc -gen-subtarget)
@@ -13,6 +14,7 @@ tablegen(LLVM A64GenMCCodeEmitter.inc -gen-emitter)
 add_public_tablegen_target(A64CommonTableGen)
 
 add_llvm_target(A64CodeGen
+  A64ISelDAGToDAG.cpp
   A64Subtarget.cpp
   A64TargetObjectFile.cpp
   A64TargetMachine.cpp
