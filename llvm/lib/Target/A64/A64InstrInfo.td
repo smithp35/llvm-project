@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// Node definitions
 def A64callseq_start : SDNode<"ISD::CALLSEQ_START",
                             SDCallSeqStart<[ SDTCisVT<0, i32>,
                                              SDTCisVT<1, i32> ]>,
@@ -19,6 +18,14 @@ def A64callseq_end   : SDNode<"ISD::CALLSEQ_END",
                             SDCallSeqEnd<[ SDTCisVT<0, i32>,
                                            SDTCisVT<1, i32> ]>,
                             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
+
+// Target Specific Nodes
+def A64retflag       : SDNode<"A64ISD::RET_FLAG", SDTNone,
+                            [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def A64call          : SDNode<"A64ISD::CALL",
+                            SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>,
+                            [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
+                             SDNPVariadic]>;
 
 include "A64InstrFormats.td"
 

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "A64.h"
+#include "A64InstrInfo.h"
 #include "A64TargetMachine.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 

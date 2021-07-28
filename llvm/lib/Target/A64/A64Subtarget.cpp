@@ -23,4 +23,17 @@ using namespace llvm;
 
 A64Subtarget::A64Subtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS, const TargetMachine &TM)
-    : A64GenSubtargetInfo(TT, CPU, /*TuneCPU*/ CPU, FS) {}
+    : A64GenSubtargetInfo(TT, CPU, /*TuneCPU*/ CPU, FS),
+      InstrInfo(initializeSubtargetDependencies(FS, CPU)), TLInfo(TM, *this) {}
+
+A64Subtarget &
+A64Subtarget::initializeSubtargetDependencies(StringRef FS,
+                                              StringRef CPUString) {
+  // Determine default and user-specified characteristics
+
+  if (CPUString.empty())
+    CPUString = "generic";
+
+  ParseSubtargetFeatures(CPUString, /*TuneCPU*/ CPUString, FS);
+  return *this;
+}

@@ -14,7 +14,10 @@ tablegen(LLVM A64GenMCCodeEmitter.inc -gen-emitter)
 add_public_tablegen_target(A64CommonTableGen)
 
 add_llvm_target(A64CodeGen
+  A64FrameLowering.cpp
+  A64InstrInfo.cpp
   A64ISelDAGToDAG.cpp
+  A64ISelLowering.cpp
   A64Subtarget.cpp
   A64TargetObjectFile.cpp
   A64TargetMachine.cpp
