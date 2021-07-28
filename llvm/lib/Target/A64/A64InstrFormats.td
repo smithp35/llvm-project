@@ -30,6 +30,9 @@ def BranchTarget26Operand : BranchTarget<26>;
 def PCRelLabel19Operand   : PCRelLabel<19>;
 
 // Load/Store unsigned scaled offset operand
+
+def am_indexed64 : ComplexPattern<i64, 2, "SelectAddrModeIndexed64", []>;
+
 // Only 64-bit 8-bytes supported at the moment
 class UImm12OffsetOperand<int Scale> : AsmOperandClass {
   let Name = "UImm12Offset" # Scale;
@@ -137,8 +140,7 @@ class arith_shift : Operand<i64> {
 def arith_shift64 : arith_shift;
 
 class arith_shifted_reg<ValueType Ty, RegisterClass regclass>
-    : Operand<Ty>
-      //,ComplexPattern<Ty, 2, "SelectArithShiftedRegister", []>
+    : Operand<Ty>, ComplexPattern<Ty, 2, "SelectArithShiftedRegister", []>
       {
   let PrintMethod = "printShiftedRegister";
   let MIOperandInfo = (ops regclass, !cast<Operand>("arith_shift64"));
@@ -158,9 +160,7 @@ class logical_shift : Operand<i32> {
 def logical_shift64 : logical_shift;
 
 class logical_shifted_reg<ValueType Ty, RegisterClass regclass, Operand shiftop>
-    : Operand<Ty>
-      // ,ComplexPattern<Ty, 2, "SelectLogicalShiftedRegister", []>
-      {
+    : Operand<Ty>, ComplexPattern<Ty, 2, "SelectLogicalShiftedRegister", []> {
   let PrintMethod = "printShiftedRegister";
   let MIOperandInfo = (ops regclass, shiftop);
 }
@@ -511,7 +511,7 @@ multiclass LoadUI<bit V, bits<2> opc,
 
 multiclass StoreUI<bit V, bits<2> opc,
                   Operand indextype, string opstr> {
-  let AddedComplexity = 10, mayLoad = 1, mayStore = 0, hasSideEffects = 0 in
+  let AddedComplexity = 10, mayLoad = 0, mayStore = 1, hasSideEffects = 0 in
   def ui : BaseLoadStoreUI<V, opc, (outs),
                            (ins GPR64:$rt, GPR64sp:$rn, indextype:$imm),
                            opstr>;

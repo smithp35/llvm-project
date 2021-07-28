@@ -66,6 +66,11 @@ defm SUB : AddSubRegGen2<"sub", 1>;
 defm ADDS : AddSubRegGen2S<"adds", 0>;
 defm SUBS : AddSubRegGen2S<"subs", 1>;
 
+def : Pat<(add GPR64:$src1, arith_shifted_reg64:$src2),
+          (ADDXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
+def : Pat<(sub GPR64:$src1, arith_shifted_reg64:$src2),
+          (SUBXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
+
 /// Arm ARM Logical (immediates)
 defm AND : LogicalImm<"and", 0b00, "bic">;
 defm ORR : LogicalImm<"orr", 0b01, "orn">;
@@ -86,6 +91,12 @@ defm ORNr : LogicalRegGen<"orn", 0b01, 0b1>;
 defm EORr : LogicalRegGen<"eor", 0b10, 0b0>;
 defm EONr : LogicalRegGen<"eon", 0b10, 0b1>;
 
+def : Pat<(and GPR64:$src1, logical_shifted_reg64:$src2),
+          (ANDrXrs GPR64:$src1, logical_shifted_reg64:$src2)>;
+def : Pat<(or GPR64:$src1, logical_shifted_reg64:$src2),
+          (ORRrXrs GPR64:$src1, logical_shifted_reg64:$src2)>;
+def : Pat<(xor GPR64:$src1, logical_shifted_reg64:$src2),
+          (EORrXrs GPR64:$src1, logical_shifted_reg64:$src2)>;
 
 defm ANDSr : LogicalRegGenS<"ands", 0b11, 0b0>;
 defm BICSr : LogicalRegGenS<"bics", 0b11, 0b1>;
@@ -130,6 +141,14 @@ def LDRXl : LoadLiteral<0b01, 0, "ldr">;
 defm LDRX : LoadUI<0b0, 0b01, uimm12s8, "ldr">;
 defm STRX : StoreUI<0b0, 0b00, uimm12s8, "str">;
 
+// am_indexed makes sure offset is in range
+def : Pat<(load (am_indexed64 GPR64sp:$rn, uimm12s8:$offset)),
+          (LDRXui GPR64:$rn, uimm12s8:$offset)>;
+
+def : Pat<(store (i64 GPR64:$rt),
+                 (am_indexed64 GPR64sp:$rn, uimm12s8:$offset)),
+          (STRXui GPR64:$rt, GPR64sp:$rn, uimm12s8:$offset)>;
+
 /// Multiply only register-register
 
 class MultiplyAccSub <string opstr, bits<1> o0>
@@ -151,6 +170,11 @@ class MultiplyAccSub <string opstr, bits<1> o0>
 def MADD : MultiplyAccSub <"madd", 0>;
 def MSUB : MultiplyAccSub <"msub", 1>;
 
+def : Pat<(add (mul GPR64sp:$rn, GPR64sp:$rm), GPR64sp:$ra),
+          (MADD GPR64sp:$rn, GPR64sp:$rm, GPR64sp:$ra)>;
+def : Pat<(sub (mul GPR64sp:$rn, GPR64sp:$rm), GPR64sp:$ra),
+          (MSUB GPR64sp:$rn, GPR64sp:$rm, GPR64sp:$ra)>;
+
 // Mul is an alias of MADD it may be possible to refactor to make this
 // an alias in tablegen.
 class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
@@ -166,6 +190,8 @@ class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
 }
 
 def mull : Mulc;
+
+def : Pat<(mul GPR64sp:$rn, GPR64sp:$rm), (mull GPR64sp:$rn, GPR64sp:$rm)>;
 
 // ADR address generation
 def ADR : ADRI<0, "adr", adrlabel>;
