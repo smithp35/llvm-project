@@ -216,3 +216,10 @@ let isCall = 1, Defs = [LR], Uses = [SP] in {
 
 // Conditional branch
 def Bcc : BCond;
+
+// Indirect Branches
+def BR : BranchReg<0b0000, "br">;
+def RET : BranchReg<0b0010, "ret">;
+
+// RET defaults to x30 (LR)
+def : InstAlias<"ret", (RET LR)>;

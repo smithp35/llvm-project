@@ -619,6 +619,31 @@ class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
     let Inst{15-10} = op3;
 }
 
+// Branch (register), including blr, br and ret
+// Branch (register) instructions:
+//
+//  case opc of
+//    0001 blr
+//    0000 br
+//    0101 dret
+//    0100 eret
+//    0010 ret
+//    otherwise UNDEFINED
+class BaseBranchReg<bits<4> opc, dag outs, dag ins, string asmstr>
+    : A64Inst<outs, ins, asmstr , []> {
+  let Inst{31-25} = 0b1101011;
+  let Inst{24-21} = opc;
+  let Inst{20-16} = 0b11111;
+  let Inst{15-10} = 0b000000;
+  let Inst{4-0}   = 0b00000;
+}
+
+class BranchReg<bits<4> opc, string opstr>
+    : BaseBranchReg<opc, (outs), (ins GPR64:$Rn), !strconcat(opstr, "\t$Rn")> {
+  bits<5> Rn;
+  let Inst{9-5} = Rn;
+}
+
 class DataProcessingReg3 <bits<2> op54, bits<3> op31, bits<1> o0,
                           dag outs, dag ins, string asmstr,
                           list<dag> pattern>
