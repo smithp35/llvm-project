@@ -12,6 +12,7 @@
 
 #include "A64ISelLowering.h"
 #include "A64Subtarget.h"
+#include "A64RegisterInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 using namespace llvm;
@@ -19,6 +20,18 @@ using namespace llvm;
 A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
                                      const A64Subtarget &STI)
     : TargetLowering(TM), Subtarget(&STI) {
-  // TODO Implement
-  assert(false);
+  // Only support 64-bit registers in this backend.
+  addRegisterClass(MVT::i64, &A64::GPR64allRegClass);
+}
+
+const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
+  switch ((A64ISD::NodeType)Opcode) {
+  case A64ISD::FIRST_NUMBER:
+    break;
+  case A64ISD::CALL:
+    return "A64ISD::CALL";
+  case A64ISD::RET_FLAG:
+    return "A64ISD::RET_FLAG";
+  }
+  return nullptr;
 }

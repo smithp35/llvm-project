@@ -28,5 +28,5 @@ void A64FrameLowering::emitEpilogue(MachineFunction &MF,
 bool A64FrameLowering::hasFP(const MachineFunction &MF) const {
   // TODO Implement
   assert(false);
-  return false;
+  return true;
 }

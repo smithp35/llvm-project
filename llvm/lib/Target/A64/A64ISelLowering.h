@@ -39,6 +39,13 @@ class A64TargetLowering : public TargetLowering {
 public:
   explicit A64TargetLowering(const TargetMachine &TM, const A64Subtarget &STI);
 
+  // Unconditionally 64-bit
+  MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const override {
+    return MVT::getIntegerVT(64);
+  }
+
+  const char *getTargetNodeName(unsigned Opcode) const override;
+
 private:
   /// Keep a pointer to the A64Subtarget around so that we can
   /// make the right decision when generating code for different targets.

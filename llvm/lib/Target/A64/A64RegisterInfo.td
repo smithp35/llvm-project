@@ -84,3 +84,6 @@ def CCR : RegisterClass<"A64", [i32], 32, (add NZCV)> {
   // CCR is not allocatable.
   let isAllocatable = 0;
 }
+
+def GPR64all : RegisterClass<"A64", [i64], 64, (add GPR64common, XZR, SP)>;
+
