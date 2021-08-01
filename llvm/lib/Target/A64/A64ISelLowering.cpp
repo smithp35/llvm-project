@@ -24,6 +24,11 @@ A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
     : TargetLowering(TM), Subtarget(&STI) {
   // Only support 64-bit registers in this backend.
   addRegisterClass(MVT::i64, &A64::GPR64allRegClass);
+
+  setStackPointerRegisterToSaveRestore(A64::SP);
+
+  // Use 0 or 1 for booleans
+  setBooleanContents(ZeroOrOneBooleanContent);
 }
 
 const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
