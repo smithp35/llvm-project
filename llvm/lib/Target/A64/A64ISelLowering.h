@@ -50,6 +50,14 @@ private:
   /// Keep a pointer to the A64Subtarget around so that we can
   /// make the right decision when generating code for different targets.
   const A64Subtarget *Subtarget;
+
+  /// This hook must be implemented to lower outgoing return values, described
+  /// by the Outs array, into the specified DAG. The implementation should
+  /// return the resulting token chain value.
+  SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+                      const SmallVectorImpl<ISD::OutputArg> &Outs,
+                      const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
+                      SelectionDAG &DAG) const override;
 };
 
 } // namespace llvm

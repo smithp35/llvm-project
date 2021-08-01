@@ -219,7 +219,11 @@ def Bcc : BCond;
 
 // Indirect Branches
 def BR : BranchReg<0b0000, "br">;
+let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
 def RET : BranchReg<0b0010, "ret">;
+}
+
+def : Pat<(A64retflag), (RET LR)>;
 
 // RET defaults to x30 (LR)
 def : InstAlias<"ret", (RET LR)>;

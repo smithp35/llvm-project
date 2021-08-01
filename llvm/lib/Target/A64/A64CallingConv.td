@@ -22,5 +22,10 @@ def CC_A64 : CallingConv<[
   CCIfType<[i1, i8, i16, i32, i64], CCAssignToStack<8,8>>]
 >;
 
+def RetCC_A64 : CallingConv<[
+  // i64 are returned in registers X0, to X8
+  CCIfType<[i64], CCAssignToReg<[X0, X1, X2, X3, X4, X5, X6, X7]>>,
+]>;
+
 def CC_Save : CalleeSavedRegs<(add X19, X20, X21, X22, X23, X24,
                                    X25, X26, X27, X28, LR, FP)>;

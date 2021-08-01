@@ -11,8 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "A64ISelLowering.h"
+#include "A64.h"
 #include "A64Subtarget.h"
 #include "A64RegisterInfo.h"
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 using namespace llvm;
@@ -34,4 +36,54 @@ const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "A64ISD::RET_FLAG";
   }
   return nullptr;
+}
+
+//===----------------------------------------------------------------------===//
+//                      Calling Convention Implementation
+//===----------------------------------------------------------------------===//
+
+#include "A64GenCallingConv.inc"
+
+SDValue
+A64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
+                               bool isVarArg,
+                               const SmallVectorImpl<ISD::OutputArg> &Outs,
+                               const SmallVectorImpl<SDValue> &OutVals,
+                               const SDLoc &DL, SelectionDAG &DAG) const {
+  if (isVarArg) {
+    report_fatal_error("VarArg not supported");
+  }
+
+  // CCValAssign - represent the assignment of
+  // the return value to a location
+  SmallVector<CCValAssign, 16> RVLocs;
+
+  // CCState - Info about the registers and stack slot.
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), RVLocs,
+                 *DAG.getContext());
+
+  CCInfo.AnalyzeReturn(Outs, RetCC_A64);
+
+  SDValue Flag;
+  SmallVector<SDValue, 8> RetOps(1, Chain);
+
+  // Copy the result values into the output registers.
+  for (unsigned i = 0, e = RVLocs.size(); i < e; ++i) {
+    CCValAssign &VA = RVLocs[i];
+    assert(VA.isRegLoc() && "Can only return in registers!");
+
+    Chain = DAG.getCopyToReg(Chain, DL, VA.getLocReg(), OutVals[i], Flag);
+
+    Flag = Chain.getValue(1);
+    RetOps.push_back(DAG.getRegister(VA.getLocReg(), VA.getLocVT()));
+  }
+
+  RetOps[0] = Chain; // Update chain.
+
+  // Add the flag if we have it.
+  if (Flag.getNode()) {
+    RetOps.push_back(Flag);
+  }
+
+  return DAG.getNode(A64ISD::RET_FLAG, DL, MVT::Other, RetOps);
 }
