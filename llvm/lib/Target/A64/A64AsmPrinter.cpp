@@ -1,4 +1,4 @@
-//===- AArch64AsmPrinter.cpp - AArch64 LLVM assembly writer ---------------===//
+//===- A64AsmPrinter.cpp - A64 LLVM assembly writer ----------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains a printer that converts from our internal representation
-// of machine-dependent LLVM code to the AArch64 assembly language.
+// of machine-dependent LLVM code to the A64 assembly language.
 //
 //===----------------------------------------------------------------------===//
 
