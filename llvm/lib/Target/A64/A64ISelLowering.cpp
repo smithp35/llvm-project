@@ -12,9 +12,10 @@
 
 #include "A64ISelLowering.h"
 #include "A64.h"
-#include "A64Subtarget.h"
 #include "A64RegisterInfo.h"
+#include "A64Subtarget.h"
 #include "llvm/CodeGen/CallingConvLower.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
 
 using namespace llvm;
@@ -48,6 +49,54 @@ const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
 //===----------------------------------------------------------------------===//
 
 #include "A64GenCallingConv.inc"
+
+SDValue A64TargetLowering::LowerFormalArguments(
+    SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
+    const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
+    SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  MachineRegisterInfo &RegInfo = MF.getRegInfo();
+
+  assert(!isVarArg && "VarArg not supported");
+  // Assign locations to all of the incoming arguments.
+  SmallVector<CCValAssign, 16> ArgLocs;
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(), ArgLocs,
+                 *DAG.getContext());
+
+  CCInfo.AnalyzeFormalArguments(Ins, CC_A64);
+
+  for (auto &VA : ArgLocs) {
+    if (VA.isRegLoc()) {
+      // Arguments passed in registers
+      EVT RegVT = VA.getLocVT();
+      assert(RegVT.getSimpleVT().SimpleTy == MVT::i64 &&
+             "Only support MVT::i64 register passing");
+      const unsigned VReg = RegInfo.createVirtualRegister(&A64::GPR64RegClass);
+      RegInfo.addLiveIn(VA.getLocReg(), VReg);
+      SDValue ArgIn = DAG.getCopyFromReg(Chain, DL, VReg, RegVT);
+
+      InVals.push_back(ArgIn);
+      continue;
+    }
+
+    assert(VA.isMemLoc() &&
+           "Can only pass arguments as either registers or via the stack");
+
+    const unsigned Offset = VA.getLocMemOffset();
+
+    const int FI = MF.getFrameInfo().CreateFixedObject(8, Offset, true);
+    EVT PtrTy = getPointerTy(DAG.getDataLayout());
+    SDValue FIPtr = DAG.getFrameIndex(FI, PtrTy);
+
+    assert(VA.getValVT() == MVT::i64 &&
+           "Only support passing arguments as i64");
+    SDValue Load =
+        DAG.getLoad(VA.getValVT(), DL, Chain, FIPtr, MachinePointerInfo());
+
+    InVals.push_back(Load);
+  }
+  return Chain;
+}
 
 SDValue
 A64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,

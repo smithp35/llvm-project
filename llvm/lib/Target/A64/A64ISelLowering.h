@@ -51,9 +51,15 @@ private:
   /// make the right decision when generating code for different targets.
   const A64Subtarget *Subtarget;
 
-  /// This hook must be implemented to lower outgoing return values, described
-  /// by the Outs array, into the specified DAG. The implementation should
-  /// return the resulting token chain value.
+  SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
+                               bool isVarArg,
+                               const SmallVectorImpl<ISD::InputArg> &Ins,
+                               const SDLoc &DL, SelectionDAG &DAG,
+                               SmallVectorImpl<SDValue> &InVals) const override;
+
+  /// This hook must be implemented to lower outgoing return values,
+  /// described by the Outs array, into the specified DAG. The
+  /// implementation should return the resulting token chain value.
   SDValue LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
