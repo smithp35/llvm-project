@@ -26,6 +26,10 @@ A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
   // Only support 64-bit registers in this backend.
   addRegisterClass(MVT::i64, &A64::GPR64allRegClass);
 
+  // Must, computeRegisterProperties - Once all of the register classes are
+  // added, this allows us to compute derived properties we expose.
+  computeRegisterProperties(Subtarget->getRegisterInfo());
+
   setStackPointerRegisterToSaveRestore(A64::SP);
 
   // Use 0 or 1 for booleans

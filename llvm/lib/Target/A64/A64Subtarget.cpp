@@ -24,7 +24,8 @@ using namespace llvm;
 A64Subtarget::A64Subtarget(const Triple &TT, const std::string &CPU,
                            const std::string &FS, const TargetMachine &TM)
     : A64GenSubtargetInfo(TT, CPU, /*TuneCPU*/ CPU, FS),
-      InstrInfo(initializeSubtargetDependencies(FS, CPU)), TLInfo(TM, *this) {}
+      InstrInfo(initializeSubtargetDependencies(FS, CPU)), TLInfo(TM, *this),
+      TSInfo(), FrameLowering() {}
 
 A64Subtarget &
 A64Subtarget::initializeSubtargetDependencies(StringRef FS,

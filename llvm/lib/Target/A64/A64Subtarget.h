@@ -16,6 +16,7 @@
 #include "A64FrameLowering.h"
 #include "A64ISelLowering.h"
 #include "A64InstrInfo.h"
+#include "A64SelectionDAGInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DataLayout.h"
 #include <string>
@@ -31,6 +32,7 @@ class Triple;
 class A64Subtarget final : public A64GenSubtargetInfo {
   A64InstrInfo InstrInfo;
   A64TargetLowering TLInfo;
+  A64SelectionDAGInfo TSInfo;
   A64FrameLowering FrameLowering;
 
 public:
@@ -50,6 +52,9 @@ public:
   }
   const A64FrameLowering *getFrameLowering() const override {
     return &FrameLowering;
+  }
+  const A64SelectionDAGInfo *getSelectionDAGInfo() const override {
+    return &TSInfo;
   }
 
 private:

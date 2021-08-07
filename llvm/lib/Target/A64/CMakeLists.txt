@@ -23,6 +23,7 @@ add_llvm_target(A64CodeGen
   A64ISelLowering.cpp
   A64MCInstLower.cpp
   A64RegisterInfo.cpp
+  A64SelectionDAGInfo.cpp
   A64Subtarget.cpp
   A64TargetObjectFile.cpp
   A64TargetMachine.cpp

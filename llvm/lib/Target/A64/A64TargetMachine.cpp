@@ -36,7 +36,27 @@ static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
 // Helper function to build a DataLayout string
 static std::string computeDataLayout(const Triple &TT,
                                      const MCTargetOptions &Options) {
-  return "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128";
+  std::string Ret = "";
+
+  // Little endian
+  Ret += "e";
+
+  // ELF name mangling
+  Ret += "-m:e";
+
+  // 64-bit pointers, 64-bit aligned
+  Ret += "-p:64:64";
+
+  // 64-bit integers, 64 bit aligned
+  Ret += "-i64:64";
+
+  // 64-bit native integer width i.e register are 32-bit
+  Ret += "-n64";
+
+  // 128-bit natural stack alignment
+  Ret += "-S128";
+
+  return Ret;
 }
 
 static Reloc::Model getEffectiveRelocModel(const Triple &TT,
