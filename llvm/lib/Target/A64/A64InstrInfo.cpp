@@ -19,4 +19,4 @@ using namespace llvm;
 
 A64InstrInfo::A64InstrInfo(const A64Subtarget &STI)
     : A64GenInstrInfo(A64::ADJCALLSTACKDOWN, A64::ADJCALLSTACKUP),
-      Subtarget(STI) {}
+      RI(STI.getTargetTriple()), Subtarget(STI) {}

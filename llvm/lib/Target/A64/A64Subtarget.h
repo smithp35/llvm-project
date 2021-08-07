@@ -42,6 +42,9 @@ public:
   void ParseSubtargetFeatures(StringRef CPU, StringRef TuneCPU, StringRef FS);
 
   const A64InstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const A64RegisterInfo *getRegisterInfo() const override {
+    return &getInstrInfo()->getRegisterInfo();
+  }
   const A64TargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
