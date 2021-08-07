@@ -14,6 +14,7 @@
 #include "A64InstrInfo.h"
 #include "A64TargetMachine.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
+#include "MCTargetDesc/A64AddressingModes.h"
 
 using namespace llvm;
 
@@ -63,12 +64,44 @@ void A64DAGToDAGISel::Select(SDNode *Node) {
   SelectCode(Node);
 }
 
+/// getShiftTypeForNode - Translate a shift node to the corresponding
+/// ShiftType value.
+static A64_AM::ShiftExtendType getShiftTypeForNode(SDValue N) {
+  switch (N.getOpcode()) {
+  default:
+    return A64_AM::InvalidShiftExtend;
+  case ISD::SHL:
+    return A64_AM::LSL;
+  case ISD::SRL:
+    return A64_AM::LSR;
+  case ISD::SRA:
+    return A64_AM::ASR;
+  case ISD::ROTR:
+    return A64_AM::ROR;
+  }
+}
+
 bool A64DAGToDAGISel::SelectShiftedRegister(SDValue N, bool AllowROR,
                                             SDValue &Reg, SDValue &Shift) {
-  // TODO Implement
-  assert(false);
+  A64_AM::ShiftExtendType ShType = getShiftTypeForNode(N);
+  if (ShType == A64_AM::InvalidShiftExtend)
+    return false;
+  if (!AllowROR && ShType == A64_AM::ROR)
+    return false;
+
+  if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(N.getOperand(1))) {
+    unsigned BitSize = N.getValueSizeInBits();
+    unsigned Val = RHS->getZExtValue() & (BitSize - 1);
+    unsigned ShVal = A64_AM::getShifterImm(ShType, Val);
+
+    Reg = N.getOperand(0);
+    Shift = CurDAG->getTargetConstant(ShVal, SDLoc(N), MVT::i32);
+    return true; // isWorthFolding(N);
+  }
+
   return false;
 }
+
 bool A64DAGToDAGISel::SelectAddrModeIndexed(SDValue N, unsigned Size,
                                             SDValue &Base, SDValue &OffImm) {
   // TODO Implement
