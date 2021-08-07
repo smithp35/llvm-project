@@ -63,7 +63,9 @@ A64TargetMachine::A64TargetMachine(const Target &T, const Triple &TT,
     : LLVMTargetMachine(T, computeDataLayout(TT, Options.MCOptions), TT, CPU,
                         FS, Options, getEffectiveRelocModel(TT, RM),
                         getEffectiveA64CodeModel(TT, CM, JIT), OL),
-      TLOF(createTLOF(getTargetTriple())) {}
+      TLOF(createTLOF(getTargetTriple())) {
+  initAsmInfo();
+}
 
 const A64Subtarget *
 A64TargetMachine::getSubtargetImpl(const Function &F) const {
