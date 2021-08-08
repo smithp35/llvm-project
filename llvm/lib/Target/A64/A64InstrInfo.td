@@ -30,12 +30,12 @@ def A64call          : SDNode<"A64ISD::CALL",
 include "A64InstrFormats.td"
 
 let Defs = [SP], Uses = [SP], hasSideEffects = 1, isCodeGenOnly = 1 in {
-def ADJCALLSTACKDOWN : A64PseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2),
-                                   [(A64callseq_start timm:$amt1, timm:$amt2)]>,
-                                   Sched<[]>;
-def ADJCALLSTACKUP : A64PseudoInst<(outs), (ins i32imm:$amt1, i32imm:$amt2),
-                                   [(A64callseq_end timm:$amt1, timm:$amt2)]>,
-                                   Sched<[]>;
+def ADJCALLSTACKDOWN : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+                              [(A64callseq_start timm:$amt1, timm:$amt2)]>,
+                               Sched<[]>;
+def ADJCALLSTACKUP : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
+                            [(A64callseq_end timm:$amt1, timm:$amt2)]>,
+                             Sched<[]>;
 }
 // Comment
 
@@ -77,6 +77,11 @@ def : Pat<(add GPR64:$src1, arith_shifted_reg64:$src2),
           (ADDXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
 def : Pat<(sub GPR64:$src1, arith_shifted_reg64:$src2),
           (SUBXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
+
+def ADDXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
+                    [(set GPR64:$rd, (add GPR64:$rn, GPR64:$rm))]>;
+def SUBXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
+                    [(set GPR64:$rd, (sub GPR64:$rn, GPR64:$rm))]>;
 
 /// Arm ARM Logical (immediates)
 defm AND : LogicalImm<"and", 0b00, "bic">;

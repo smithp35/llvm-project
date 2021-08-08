@@ -1,0 +1,134 @@
+//===- A64ExpandPseudoInsts.cpp - Expand pseudo instructions --------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file contains a pass that expands pseudo instructions into target
+// instructions to allow proper scheduling and other late optimizations.  This
+// pass should be run after register allocation but before the post-regalloc
+// scheduling pass.
+//
+//===----------------------------------------------------------------------===//
+
+#include "A64InstrInfo.h"
+#include "MCTargetDesc/A64AddressingModes.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineOperand.h"
+#include "llvm/Pass.h"
+
+using namespace llvm;
+
+#define A64_EXPAND_PSEUDO_NAME "A64 pseudo instruction expansion pass"
+
+namespace {
+
+class A64ExpandPseudo : public MachineFunctionPass {
+public:
+  const A64InstrInfo *TII;
+
+  static char ID;
+
+  A64ExpandPseudo() : MachineFunctionPass(ID) {
+    initializeA64ExpandPseudoPass(*PassRegistry::getPassRegistry());
+  }
+
+  bool runOnMachineFunction(MachineFunction &Fn) override;
+
+  StringRef getPassName() const override { return A64_EXPAND_PSEUDO_NAME; }
+
+private:
+  bool expandMBB(MachineBasicBlock &MBB);
+  bool expandMI(MachineBasicBlock &MBB,
+                MachineBasicBlock::iterator MBBI,
+                MachineBasicBlock::iterator &NextMBBI);
+
+};
+} // end anonymous namespace
+
+char A64ExpandPseudo::ID = 0;
+
+INITIALIZE_PASS(A64ExpandPseudo, "a64-expand-pseudo", A64_EXPAND_PSEUDO_NAME,
+                false, false)
+
+/// Transfer implicit operands on the pseudo instruction to the
+/// instructions created from the expansion.
+static void transferImpOps(MachineInstr &OldMI, MachineInstrBuilder &UseMI,
+                           MachineInstrBuilder &DefMI) {
+  const MCInstrDesc &Desc = OldMI.getDesc();
+  for (unsigned i = Desc.getNumOperands(), e = OldMI.getNumOperands(); i != e;
+       ++i) {
+    const MachineOperand &MO = OldMI.getOperand(i);
+    assert(MO.isReg() && MO.getReg());
+    if (MO.isUse())
+      UseMI.add(MO);
+    else
+      DefMI.add(MO);
+  }
+}
+
+/// If MBBI references a pseudo instruction that should be expanded here,
+/// do the expansion and return true.  Otherwise return false.
+bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
+                               MachineBasicBlock::iterator MBBI,
+                               MachineBasicBlock::iterator &NextMBBI) {
+  MachineInstr &MI = *MBBI;
+  unsigned Opcode = MI.getOpcode();
+
+  switch (Opcode) {
+  default:
+    break;
+  case A64::ADDXrr:
+  case A64::SUBXrr: {
+    if (Opcode == A64::ADDXrr)
+      Opcode = A64::ADDXrs;
+    else
+      Opcode = A64::SUBXrs;
+    MachineInstrBuilder MIB1 =
+        BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opcode),
+                MI.getOperand(0).getReg())
+            .add(MI.getOperand(1))
+            .add(MI.getOperand(2))
+            .addImm(A64_AM::getShifterImm(A64_AM::LSL, 0));
+    transferImpOps(MI, MIB1, MIB1);
+    MI.eraseFromParent();
+    return true;
+    break;
+  }
+  }
+  return false;
+}
+
+/// Iterate over the instructions in basic block MBB and expand any
+/// pseudo instructions.  Return true if anything was modified.
+bool A64ExpandPseudo::expandMBB(MachineBasicBlock &MBB) {
+  bool Modified = false;
+
+  MachineBasicBlock::iterator MBBI = MBB.begin(), E = MBB.end();
+  while (MBBI != E) {
+    MachineBasicBlock::iterator NMBBI = std::next(MBBI);
+    Modified |= expandMI(MBB, MBBI, NMBBI);
+    MBBI = NMBBI;
+  }
+
+  return Modified;
+}
+
+bool A64ExpandPseudo::runOnMachineFunction(MachineFunction &MF) {
+  TII = static_cast<const A64InstrInfo *>(MF.getSubtarget().getInstrInfo());
+
+  bool Modified = false;
+  for (auto &MBB : MF)
+    Modified |= expandMBB(MBB);
+  return Modified;
+}
+
+/// Returns an instance of the pseudo instruction expansion pass.
+FunctionPass *llvm::createA64ExpandPseudoPass() {
+  return new A64ExpandPseudo();
+}

@@ -17,6 +17,7 @@ add_public_tablegen_target(A64CommonTableGen)
 
 add_llvm_target(A64CodeGen
   A64AsmPrinter.cpp
+  A64ExpandPseudoInsts.cpp
   A64FrameLowering.cpp
   A64InstrInfo.cpp
   A64ISelDAGToDAG.cpp

@@ -18,6 +18,7 @@
 #include "MCTargetDesc/A64MCTargetDesc.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/PassRegistry.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -29,6 +30,10 @@ class FunctionPass;
 
 FunctionPass *createA64ISelDag(A64TargetMachine &TM,
                                CodeGenOpt::Level OptLevel);
+FunctionPass *createA64ExpandPseudoPass();
+
+void initializeA64ExpandPseudoPass(PassRegistry&);
+
 } // namespace llvm
 
 #endif

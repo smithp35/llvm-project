@@ -390,9 +390,10 @@ multiclass AddSubRegGen2S<string opstr, bits<1> op> {
 }
 
 // A64 pseudo instructions format
-class A64PseudoInst<dag outs, dag ins, list<dag> pattern, string asmstr = "">
+class Pseudo<dag outs, dag ins, list<dag> pattern, string asmstr = "">
     : A64Inst<outs, ins, asmstr, pattern> {
     let isPseudo = 1;
+    let isCodeGenOnly = 1;
 }
 
 // Move immediate

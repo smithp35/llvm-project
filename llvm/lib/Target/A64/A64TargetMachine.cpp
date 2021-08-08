@@ -24,6 +24,8 @@ using namespace llvm;
 extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeA64Target() {
   // Register the target.
   RegisterTargetMachine<A64TargetMachine> X(getTheA64Target());
+  auto PR = PassRegistry::getPassRegistry();
+  initializeA64ExpandPseudoPass(*PR);
 }
 
 //===----------------------------------------------------------------------===//
@@ -126,10 +128,11 @@ public:
     addPass(createA64ISelDag(getA64TargetMachine(), getOptLevel()));
     return false;
   }
+
+  void addPreSched2() override { addPass(createA64ExpandPseudoPass()); }
 };
 } // end anonymous namespace
 
-TargetPassConfig *
-A64TargetMachine::createPassConfig(PassManagerBase &PM) {
+TargetPassConfig *A64TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new A64PassConfig(*this, PM);
 }
