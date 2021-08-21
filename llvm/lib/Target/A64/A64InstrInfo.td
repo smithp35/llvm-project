@@ -232,3 +232,11 @@ def : Pat<(A64retflag), (RET LR)>;
 
 // RET defaults to x30 (LR)
 def : InstAlias<"ret", (RET LR)>;
+
+let isReMaterializable = 1, isCodeGenOnly = 1, isMoveImm = 1,
+    isAsCheapAsAMove = 1 in {
+def MOVi64imm
+    : Pseudo<(outs GPR64:$dst), (ins i64imm:$src),
+             [(set GPR64:$dst, imm:$src)]>;
+      
+} // isReMaterializable, isCodeGenOnly

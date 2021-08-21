@@ -48,6 +48,9 @@ private:
                 MachineBasicBlock::iterator MBBI,
                 MachineBasicBlock::iterator &NextMBBI);
 
+  bool expandMOVImm(MachineBasicBlock &MBB,
+                    MachineBasicBlock::iterator MBBI);
+
 };
 } // end anonymous namespace
 
@@ -70,6 +73,133 @@ static void transferImpOps(MachineInstr &OldMI, MachineInstrBuilder &UseMI,
     else
       DefMI.add(MO);
   }
+}
+
+struct ImmInsnModel {
+  unsigned Opcode;
+  uint64_t Op1;
+  uint64_t Op2;
+};
+
+/// \brief Expand a MOVi64imm pseudo instruction to a
+/// MOVZ or MOVN followed by up to 3 MOVK instructions.
+static inline void expandMOVImmSimple(uint64_t Imm,
+                                      SmallVectorImpl<ImmInsnModel> &Insn) {
+  const unsigned Mask = 0xFFFF;
+
+  // Use a MOVZ or MOVN instruction to set the high bits, followed by one or
+  // more MOVK instructions to insert additional 16-bit portions into the
+  // lower bits.
+  bool isNeg = false;
+
+  // Scan the immediate and count the number of 16-bit chunks which are either
+  // all ones or all zeros.
+  unsigned OneChunks = 0;
+  unsigned ZeroChunks = 0;
+  for (unsigned Shift = 0; Shift < 64; Shift += 16) {
+    const unsigned Chunk = (Imm >> Shift) & Mask;
+    if (Chunk == Mask)
+      OneChunks++;
+    else if (Chunk == 0)
+      ZeroChunks++;
+  }
+
+  // Use MOVN to materialize the high bits if we have more all one chunks
+  // than all zero chunks.
+  if (OneChunks > ZeroChunks) {
+    isNeg = true;
+    Imm = ~Imm;
+  }
+
+  unsigned FirstOpc = (isNeg ? A64::MOVN : A64::MOVZ);
+
+  unsigned Shift = 0;     // LSL amount for high bits with MOVZ/MOVN
+  unsigned LastShift = 0; // LSL amount for last MOVK
+  if (Imm != 0) {
+    unsigned LZ = countLeadingZeros(Imm);
+    unsigned TZ = countTrailingZeros(Imm);
+    Shift = (TZ / 16) * 16;
+    LastShift = ((63 - LZ) / 16) * 16;
+  }
+  unsigned Imm16 = (Imm >> Shift) & Mask;
+  /// Can we add instruction directly here
+  Insn.push_back({FirstOpc, Imm16, A64_AM::getShifterImm(A64_AM::LSL, Shift)});
+
+  if (Shift == LastShift)
+    return;
+
+  // If a MOVN was used for the high bits of a negative value, flip the rest
+  // of the bits back for use with MOVK.
+  if (isNeg)
+    Imm = ~Imm;
+
+  unsigned Opc = A64::MOVK;
+  while (Shift < LastShift) {
+    Shift += 16;
+    Imm16 = (Imm >> Shift) & Mask;
+    if (Imm16 == (isNeg ? Mask : 0))
+      continue; // This 16-bit portion is already set correctly.
+
+    Insn.push_back({Opc, Imm16, A64_AM::getShifterImm(A64_AM::LSL, Shift)});
+  }
+}
+
+bool A64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
+                                   MachineBasicBlock::iterator MBBI) {
+  MachineInstr &MI = *MBBI;
+  Register DstReg = MI.getOperand(0).getReg();
+  uint64_t RenamableState =
+      MI.getOperand(0).isRenamable() ? RegState::Renamable : 0;
+  uint64_t Imm = MI.getOperand(1).getImm();
+
+  if (DstReg == A64::XZR) {
+    // Useless def, and we don't want to risk creating an invalid ORR (which
+    // would really write to sp).
+    MI.eraseFromParent();
+    return true;
+  }
+
+  SmallVector<ImmInsnModel, 4> Insn;
+
+  expandMOVImmSimple(Imm, Insn);
+  assert(Insn.size() != 0);
+
+  SmallVector<MachineInstrBuilder, 4> MIBS;
+  for (auto I = Insn.begin(), E = Insn.end(); I != E; ++I) {
+    bool LastItem = std::next(I) == E;
+    switch (I->Opcode) {
+    default:
+      llvm_unreachable("unhandled!");
+      break;
+
+    case A64::MOVN:
+    case A64::MOVZ: {
+      bool DstIsDead = MI.getOperand(0).isDead();
+      MIBS.push_back(
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(I->Opcode))
+              .addReg(DstReg, RegState::Define |
+                                  getDeadRegState(DstIsDead && LastItem) |
+                                  RenamableState)
+              .addImm(I->Op1)
+              .addImm(I->Op2));
+    } break;
+    case A64::MOVK: {
+      Register DstReg = MI.getOperand(0).getReg();
+      bool DstIsDead = MI.getOperand(0).isDead();
+      MIBS.push_back(
+          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(I->Opcode))
+              .addReg(DstReg, RegState::Define |
+                                  getDeadRegState(DstIsDead && LastItem) |
+                                  RenamableState)
+              .addReg(DstReg)
+              .addImm(I->Op1)
+              .addImm(I->Op2));
+    } break;
+    }
+  }
+  transferImpOps(MI, MIBS.front(), MIBS.back());
+  MI.eraseFromParent();
+  return true;
 }
 
 /// If MBBI references a pseudo instruction that should be expanded here,
@@ -100,6 +230,8 @@ bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     return true;
     break;
   }
+  case A64::MOVi64imm:
+    return expandMOVImm(MBB, MBBI);
   }
   return false;
 }
