@@ -44,13 +44,10 @@ public:
 
 private:
   bool expandMBB(MachineBasicBlock &MBB);
-  bool expandMI(MachineBasicBlock &MBB,
-                MachineBasicBlock::iterator MBBI,
+  bool expandMI(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI,
                 MachineBasicBlock::iterator &NextMBBI);
 
-  bool expandMOVImm(MachineBasicBlock &MBB,
-                    MachineBasicBlock::iterator MBBI);
-
+  bool expandMOVImm(MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI);
 };
 } // end anonymous namespace
 
@@ -171,7 +168,6 @@ bool A64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
     default:
       llvm_unreachable("unhandled!");
       break;
-
     case A64::MOVN:
     case A64::MOVZ: {
       bool DstIsDead = MI.getOperand(0).isDead();
@@ -229,6 +225,22 @@ bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     MI.eraseFromParent();
     return true;
     break;
+  }
+  case A64::MOVaddr: {
+    Register DstReg = MI.getOperand(0).getReg();
+    MachineInstrBuilder MIB1 =
+        BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(A64::ADRP), DstReg)
+            .add(MI.getOperand(1));
+    MachineInstrBuilder MIB2 =
+        BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(A64::ADDiXri))
+            .add(MI.getOperand(0))
+            .addReg(DstReg)
+            .add(MI.getOperand(2))
+            .addImm(0);
+
+    transferImpOps(MI, MIB1, MIB2);
+    MI.eraseFromParent();
+    return true;
   }
   case A64::MOVi64imm:
     return expandMOVImm(MBB, MBBI);

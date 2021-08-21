@@ -15,6 +15,7 @@
 namespace llvm {
 class MCContext;
 class MCOperand;
+class MCSymbol;
 class MachineInstr;
 class MachineOperand;
 class MCInst;
@@ -30,6 +31,7 @@ public:
   A64MCInstLower(MCContext &ctx, AsmPrinter &printer);
   void Lower(const MachineInstr *MI, MCInst &OutMI) const;
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp) const;
+  MCOperand lowerSymbolOperand(const MachineOperand &MO, MCSymbol *Sym) const;
 };
 }
 

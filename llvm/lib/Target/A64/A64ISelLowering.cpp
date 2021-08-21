@@ -14,11 +14,16 @@
 #include "A64.h"
 #include "A64RegisterInfo.h"
 #include "A64Subtarget.h"
+#include "MCTargetDesc/A64AddressingModes.h"
+#include "Utils/A64BaseInfo.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/TargetLowering.h"
+#include "llvm/Support/Debug.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "a64-lower"
 
 A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
                                      const A64Subtarget &STI)
@@ -29,6 +34,9 @@ A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
   // Must, computeRegisterProperties - Once all of the register classes are
   // added, this allows us to compute derived properties we expose.
   computeRegisterProperties(Subtarget->getRegisterInfo());
+
+  // Provide all sorts of operation actions
+  setOperationAction(ISD::GlobalAddress, MVT::i64, Custom);
 
   setStackPointerRegisterToSaveRestore(A64::SP);
 
@@ -42,6 +50,10 @@ const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     break;
   case A64ISD::CALL:
     return "A64ISD::CALL";
+  case A64ISD::ADRP:
+    return "A64ISD::ADRP";
+  case A64ISD::ADDlow:
+    return "A64ISD::ADDlow";
   case A64ISD::RET_FLAG:
     return "A64ISD::RET_FLAG";
   }
@@ -144,4 +156,37 @@ A64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   }
 
   return DAG.getNode(A64ISD::RET_FLAG, DL, MVT::Other, RetOps);
+}
+
+SDValue A64TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
+  LLVM_DEBUG(dbgs() << "Custom lowering: ");
+  LLVM_DEBUG(Op.dump());
+
+  switch (Op.getOpcode()) {
+  default:
+    llvm_unreachable("unimplemented operand");
+    return SDValue();
+  case ISD::GlobalAddress:
+    return LowerGlobalAddress(Op, DAG);
+  }
+}
+
+static SDValue getTargetNode(GlobalAddressSDNode *N, EVT Ty, SelectionDAG &DAG,
+                             unsigned Flag) {
+  return DAG.getTargetGlobalAddress(N->getGlobal(), SDLoc(N), Ty,
+                                    N->getOffset(), Flag);
+}
+
+SDValue A64TargetLowering::LowerGlobalAddress(SDValue Op,
+                                              SelectionDAG &DAG) const {
+  GlobalAddressSDNode *GN = cast<GlobalAddressSDNode>(Op);
+  SDLoc DL(GN);
+  unsigned Flags = A64II::MO_NO_FLAG;
+  EVT Ty = getPointerTy(DAG.getDataLayout());
+  // We use the small code model of ADRP, ADD
+  SDValue Hi = getTargetNode(GN, Ty, DAG, A64II::MO_PAGE | Flags);
+  SDValue Lo =
+      getTargetNode(GN, Ty, DAG, A64II::MO_PAGEOFF | A64II::MO_NC | Flags);
+  SDValue ADRP = DAG.getNode(A64ISD::ADRP, DL, Ty, Hi);
+  return DAG.getNode(A64ISD::ADDlow, DL, Ty, ADRP, Lo);
 }

@@ -26,6 +26,8 @@ def A64call          : SDNode<"A64ISD::CALL",
                             SDTypeProfile<0, -1, [SDTCisPtrTy<0>]>,
                             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                              SDNPVariadic]>;
+def A64adrp          : SDNode<"A64ISD::ADRP", SDTIntUnaryOp, []>;
+def A64addlow        : SDNode<"A64ISD::ADDlow", SDTIntBinOp, []>;
 
 include "A64InstrFormats.td"
 
@@ -210,6 +212,8 @@ def ADR : ADRI<0, "adr", adrlabel>;
 // ADRP paged address generation
 def ADRP : ADRI<1, "adrp", adrplabel>;
 
+def : Pat<(A64adrp tglobaladdr:$label), (ADRP tglobaladdr:$label)>;
+
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
 def B  : BranchImm<"b">;
 }
@@ -240,3 +244,8 @@ def MOVi64imm
              [(set GPR64:$dst, imm:$src)]>;
       
 } // isReMaterializable, isCodeGenOnly
+
+def MOVaddr
+    : Pseudo<(outs GPR64:$dst), (ins i64imm:$hi, i64imm:$low),
+             [(set GPR64:$dst, (A64addlow (A64adrp tglobaladdr:$hi),
+                                           tglobaladdr:$low))]>;

@@ -18,7 +18,36 @@
 
 #include "llvm/Support/ErrorHandling.h"
 
+namespace A64II {
+  /// Target Operand Flag enum.
+  enum TOF {
+    //===------------------------------------------------------------------===//
+    // A64 Specific MachineOperand flags.
+    MO_NO_FLAG,
+
+    MO_FRAGMENT = 0x7,
+
+    /// MO_PAGE - A symbol operand with this flag represents the pc-relative
+    /// offset of the 4K page containing the symbol.  This is used with the
+    /// ADRP instruction.
+    MO_PAGE = 1,
+
+    /// MO_PAGEOFF - A symbol operand with this flag represents the offset of
+    /// that symbol within a 4K page.  This offset is added to the page address
+    /// to produce the complete address.
+    MO_PAGEOFF = 2,
+
+    /// MO_NC - Indicates whether the linker is expected to check the symbol
+    /// reference for overflow. For example in an ADRP/ADD pair of relocations
+    /// the ADRP usually does check, but not the ADD.
+    MO_NC = 0x20,
+
+  };
+}
+
 namespace A64CC {
+
+
 
 // The CondCodes constants map directly to the 4-bit encoding of the condition
 // field for predicated instructions.

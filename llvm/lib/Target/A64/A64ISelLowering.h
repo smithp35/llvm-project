@@ -25,6 +25,8 @@ namespace A64ISD {
 enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   CALL,     // Function call.
+  ADRP,     // Page address of a TargetGlobalAddress operand.
+  ADDlow,   // Add the low 12 bits of a TargetGlobalAddress operand.
   RET_FLAG, // Return with a flag operand. Operand 0 is the chain operand.
 };
 }
@@ -43,6 +45,9 @@ public:
   MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const override {
     return MVT::getIntegerVT(64);
   }
+
+  /// Provide custom lowering hooks for some operations.
+  SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
 
   const char *getTargetNodeName(unsigned Opcode) const override;
 
@@ -64,6 +69,9 @@ private:
                       const SmallVectorImpl<ISD::OutputArg> &Outs,
                       const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
                       SelectionDAG &DAG) const override;
+
+  SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+
 };
 
 } // namespace llvm
