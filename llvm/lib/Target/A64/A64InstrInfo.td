@@ -66,6 +66,11 @@ def uimm12 : Operand<i32>, ImmLeaf<i32, [{
 defm ADDi : AddSub<"add", 0>;
 defm SUBi : AddSub<"sub", 1>;
 
+def : Pat<(add GPR64:$src1, addsub_shifted_imm64:$src2),
+          (ADDiXri GPR64:$src1, addsub_shifted_imm64:$src2)>;
+def : Pat<(sub GPR64:$src1, addsub_shifted_imm64:$src2),
+          (SUBiXri GPR64:$src1, addsub_shifted_imm64:$src2)>;
+
 // Flag setting
 defm ADDSi : AddSubS<"adds", 0>;
 defm SUBSi : AddSubS<"subs", 1>;
