@@ -102,11 +102,68 @@ bool A64DAGToDAGISel::SelectShiftedRegister(SDValue N, bool AllowROR,
   return false;
 }
 
+/// If there's a use of this ADDlow that's not itself a load/store then we'll
+/// need to create a real ADD instruction from it anyway and there's no point in
+/// folding it into the mem op. Theoretically, it shouldn't matter, but there's
+/// a single pseudo-instruction for an ADRP/ADD pair so over-aggressive folding
+/// leads to duplicated ADRP instructions.
+static bool isWorthFoldingADDlow(SDValue N) {
+  for (auto Use : N->uses()) {
+    if (Use->getOpcode() != ISD::LOAD && Use->getOpcode() != ISD::STORE)
+      return false;
+  }
+
+  return true;
+}
+
 bool A64DAGToDAGISel::SelectAddrModeIndexed(SDValue N, unsigned Size,
                                             SDValue &Base, SDValue &OffImm) {
-  // TODO Implement
-  assert(false);
-  return false;
+  SDLoc dl(N);
+  const DataLayout &DL = CurDAG->getDataLayout();
+  const TargetLowering *TLI = getTargetLowering();
+  if (N.getOpcode() == ISD::FrameIndex) {
+    int FI = cast<FrameIndexSDNode>(N)->getIndex();
+    Base = CurDAG->getTargetFrameIndex(FI, TLI->getPointerTy(DL));
+    OffImm = CurDAG->getTargetConstant(0, dl, MVT::i64);
+    return true;
+  }
+
+  if (N.getOpcode() == A64ISD::ADDlow && isWorthFoldingADDlow(N)) {
+    GlobalAddressSDNode *GAN =
+        dyn_cast<GlobalAddressSDNode>(N.getOperand(1).getNode());
+    Base = N.getOperand(0);
+    OffImm = N.getOperand(1);
+    if (!GAN)
+      return true;
+
+    if (GAN->getOffset() % Size == 0 &&
+        GAN->getGlobal()->getPointerAlignment(DL) >= Size)
+      return true;
+  }
+
+  if (CurDAG->isBaseWithConstantOffset(N)) {
+    if (ConstantSDNode *RHS = dyn_cast<ConstantSDNode>(N.getOperand(1))) {
+      int64_t RHSC = (int64_t)RHS->getZExtValue();
+      unsigned Scale = Log2_32(Size);
+      if ((RHSC & (Size - 1)) == 0 && RHSC >= 0 && RHSC < (0x1000 << Scale)) {
+        Base = N.getOperand(0);
+        if (Base.getOpcode() == ISD::FrameIndex) {
+          int FI = cast<FrameIndexSDNode>(Base)->getIndex();
+          Base = CurDAG->getTargetFrameIndex(FI, TLI->getPointerTy(DL));
+        }
+        OffImm = CurDAG->getTargetConstant(RHSC >> Scale, dl, MVT::i64);
+        return true;
+      }
+    }
+  }
+
+  // Base only. The address will be materialized into a register before
+  // the memory is accessed.
+  //    add x0, Xbase, #offset
+  //    ldr x0, [x0]
+  Base = N;
+  OffImm = CurDAG->getTargetConstant(0, dl, MVT::i64);
+  return true;
 }
 
 /// createA64ISelDag - This pass converts a legalized DAG into a
