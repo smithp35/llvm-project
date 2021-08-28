@@ -223,6 +223,8 @@ let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
 def B  : BranchImm<"b">;
 }
 
+def : Pat<(br bb:$addr), (B bb:$addr)>;
+
 // Branch and Link
 let isCall = 1, Defs = [LR], Uses = [SP] in {
   def BL : CallImm<"bl">;
