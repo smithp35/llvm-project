@@ -27,6 +27,10 @@ def SDT_A64CCMP : SDTypeProfile<1, 5,
                                  SDTCisInt<4>,
                                  SDTCisVT<5, i32>]>;
 
+def SDT_A64Brcond  : SDTypeProfile<0, 3,
+                                   [SDTCisVT<0, OtherVT>, SDTCisVT<1, i32>,
+                                    SDTCisVT<2, i32>]>;
+
 // Target Specific Nodes
 def A64retflag       : SDNode<"A64ISD::RET_FLAG", SDTNone,
                             [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
@@ -38,6 +42,8 @@ def A64adrp          : SDNode<"A64ISD::ADRP", SDTIntUnaryOp, []>;
 def A64addlow        : SDNode<"A64ISD::ADDlow", SDTIntBinOp, []>;
 def A64ccmp          : SDNode<"A64ISD::CCMP",  SDT_A64CCMP>;
 def A64ccmn          : SDNode<"A64ISD::CCMN",  SDT_A64CCMP>;
+def A64brcond        : SDNode<"A64ISD::BRCOND", SDT_A64Brcond,
+                                [SDNPHasChain]>;
 
 include "A64InstrFormats.td"
 
@@ -251,6 +257,9 @@ let isCall = 1, Defs = [LR], Uses = [SP] in {
 
 // Conditional branch
 def Bcc : BCond;
+
+def : Pat<(A64brcond bb:$target, imm:$cond, NZCV),
+          (Bcc imm:$cond, bb:$target)>;
 
 // Indirect Branches
 let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {

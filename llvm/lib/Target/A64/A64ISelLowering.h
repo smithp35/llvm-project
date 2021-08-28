@@ -28,6 +28,7 @@ enum NodeType : unsigned {
   ADRP,     // Page address of a TargetGlobalAddress operand.
   ADDlow,   // Add the low 12 bits of a TargetGlobalAddress operand.
   RET_FLAG, // Return with a flag operand. Operand 0 is the chain operand.
+  BRCOND,   // Conditional branch instruction; "b.cond".
 };
 }
 
