@@ -78,10 +78,12 @@ public:
 
   SMLoc getLoc() const { return getParser().getTok().getLoc(); }
   A64CC::CondCode parseCondCodeString(StringRef Cond);
+  bool parseCondCode(OperandVector &Operands);
   bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
                         SMLoc NameLoc, OperandVector &Operands) override;
   bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc, SMLoc &EndLoc) override;
-  bool parseOperand(OperandVector &Operands, StringRef Mnemonic);
+  bool parseOperand(OperandVector &Operands, StringRef Mnemonic,
+                    bool isCondCode);
   bool parseRegister(OperandVector &Operands);
   bool parseSymbolicImmVal(const MCExpr *&ImmVal);
   OperandMatchResultTy tryParseAdrLabel(OperandVector &Operands);
@@ -776,6 +778,24 @@ A64CC::CondCode A64AsmParser::parseCondCodeString(StringRef Cond) {
   return CC;
 }
 
+/// parseCondCode - Parse a Condition Code operand.
+bool A64AsmParser::parseCondCode(OperandVector &Operands) {
+  MCAsmParser &Parser = getParser();
+  SMLoc S = getLoc();
+  const AsmToken &Tok = Parser.getTok();
+  assert(Tok.is(AsmToken::Identifier) && "Token is not an Identifier");
+
+  StringRef Cond = Tok.getString();
+  A64CC::CondCode CC = parseCondCodeString(Cond);
+  if (CC == A64CC::Invalid)
+    return TokError("invalid condition code");
+  Parser.Lex(); // Eat identifier token.
+
+  Operands.push_back(
+      A64Operand::CreateCondCode(CC, S, getLoc(), getContext()));
+  return false;
+}
+
 /// Try to parse a register name. The token must be an
 /// Identifier when called, and if it is a register name the token is eaten and
 /// the register is added to the operand list.
@@ -807,7 +827,8 @@ bool A64AsmParser::parseRegister(OperandVector &Operands) {
 /// Looks at a token type and creates the relevant operand from this
 /// information, adding to Operands. If operand was parsed, returns false, else
 /// true.
-bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
+bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic,
+                                bool isCondCode) {
   // Check if the current operand has a custom associated parser, if so, try to
   // custom parse the operand, or fallback to the general approach.
   OperandMatchResultTy Result =
@@ -831,6 +852,11 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
     return false;
   }
   case AsmToken::Identifier: {
+
+    // If we're expecting a Condition Code operand, then just parse that.
+    if (isCondCode)
+      return parseCondCode(Operands);
+
     if (parseRegister(Operands) == MatchOperand_Success)
       return false;
 
@@ -857,7 +883,7 @@ bool A64AsmParser::parseOperand(OperandVector &Operands, StringRef Mnemonic) {
 
     // There's no comma after a '[', so we can parse the next operand
     // immediately.
-    return parseOperand(Operands, Mnemonic);
+    return parseOperand(Operands, Mnemonic, /* isCondCode */ false);
   }
   case AsmToken::Integer:
   case AsmToken::Hash: {
@@ -938,8 +964,12 @@ bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
   if (getLexer().is(AsmToken::EndOfStatement))
     return false;
 
+  // Conditional compare instructions have a Condition Code operand, which needs
+  // to be parsed and an immediate operand created.
+  bool condCodeFourthOperand = (Head == "ccmp" || Head == "ccmn");
+
   // Parse first operand
-  if (parseOperand(Operands, Mnemonic))
+  if (parseOperand(Operands, Mnemonic, /* isCondCode */ false))
     return true;
 
   // Parse until end of statement, consuming commas between operands
@@ -949,7 +979,8 @@ bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
     getLexer().Lex();
 
     // Parse next operand
-    if (parseOperand(Operands, Mnemonic))
+    if (parseOperand(Operands, Mnemonic,
+                     OperandIdx == 3 && condCodeFourthOperand))
       return true;
 
     // Handle close square brackets

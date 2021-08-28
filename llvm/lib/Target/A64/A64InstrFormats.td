@@ -24,7 +24,24 @@ class PCRelLabel<int N> : BranchTarget<N> {
   let Name = "PCRelLabel" # N;
 }
 
-// TODO conditional branches
+def Imm0_15Operand : AsmImmRange<0, 15>;
+
+// imm32_0_15 predicate - True if the 32-bit immediate is in the range [0,15]
+def imm32_0_15 : Operand<i32>, ImmLeaf<i32, [{
+  return ((uint32_t)Imm) < 16;
+}]> {
+  let ParserMatchClass = Imm0_15Operand;
+}
+
+def Imm0_31Operand : AsmImmRange<0, 31>;
+
+// imm0_31 predicate - True if the immediate is in the range [0,31]
+def imm0_31 : Operand<i64>, ImmLeaf<i64, [{
+  return ((uint64_t)Imm) < 32;
+}]> {
+  let ParserMatchClass = Imm0_31Operand;
+}
+
 def BranchTarget26Operand : BranchTarget<26>;
 
 def PCRelLabel19Operand   : PCRelLabel<19>;
@@ -618,6 +635,61 @@ class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
     let Inst{27-25} = 0b101;
     let Inst{24-21} = op2;
     let Inst{15-10} = op3;
+}
+
+//---
+// Conditionally set flags
+//---
+
+let mayLoad = 0, mayStore = 0, hasSideEffects = 0 in
+class BaseCondComparisonImm<bit op, string mnemonic, SDNode OpNode>
+    : A64Inst<(outs), (ins GPR64:$Rn, imm0_31:$imm, imm32_0_15:$nzcv, ccode:$cond),
+         !strconcat(mnemonic, "\t$Rn, $imm, $nzcv, $cond"),[]> {
+  let Uses = [NZCV];
+  let Defs = [NZCV];
+
+  bits<5> Rn;
+  bits<5> imm;
+  bits<4> nzcv;
+  bits<4> cond;
+
+  let Inst{31}    = 0b1; // sf hardcoded to 1
+  let Inst{30}    = op;
+  let Inst{29-21} = 0b111010010;
+  let Inst{20-16} = imm;
+  let Inst{15-12} = cond;
+  let Inst{11-10} = 0b10;
+  let Inst{9-5}   = Rn;
+  let Inst{4}     = 0b0;
+  let Inst{3-0}   = nzcv;
+}
+
+let mayLoad = 0, mayStore = 0, hasSideEffects = 0 in
+class BaseCondComparisonReg<bit op, string mnemonic, SDNode OpNode>
+    : A64Inst<(outs), (ins GPR64:$Rn, GPR64:$Rm, imm32_0_15:$nzcv, ccode:$cond),
+         !strconcat(mnemonic, "\t$Rn, $Rm, $nzcv, $cond"), []> {
+  let Uses = [NZCV];
+  let Defs = [NZCV];
+
+  bits<5> Rn;
+  bits<5> Rm;
+  bits<4> nzcv;
+  bits<4> cond;
+  let Inst{31}    = 0b1; // sf hardcoded to 1
+  let Inst{30}    = op;
+  let Inst{29-21} = 0b111010010;
+  let Inst{20-16} = Rm;
+  let Inst{15-12} = cond;
+  let Inst{11-10} = 0b00;
+  let Inst{9-5}   = Rn;
+  let Inst{4}     = 0b0;
+  let Inst{3-0}   = nzcv;
+}
+
+multiclass CondComparison<bit op, string mnemonic, SDNode OpNode> {
+  // immediate operand variants
+  def Xi : BaseCondComparisonImm<op, mnemonic, OpNode>;
+  def Xr : BaseCondComparisonReg<op, mnemonic, OpNode>;
 }
 
 // Branch (register), including blr, br and ret

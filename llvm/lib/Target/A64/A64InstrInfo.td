@@ -19,6 +19,14 @@ def A64callseq_end   : SDNode<"ISD::CALLSEQ_END",
                                            SDTCisVT<1, i32> ]>,
                             [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 
+def SDT_A64CCMP : SDTypeProfile<1, 5,
+                                [SDTCisVT<0, i32>,
+                                 SDTCisInt<1>,
+                                 SDTCisSameAs<1, 2>,
+                                 SDTCisInt<3>,
+                                 SDTCisInt<4>,
+                                 SDTCisVT<5, i32>]>;
+
 // Target Specific Nodes
 def A64retflag       : SDNode<"A64ISD::RET_FLAG", SDTNone,
                             [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
@@ -28,6 +36,8 @@ def A64call          : SDNode<"A64ISD::CALL",
                              SDNPVariadic]>;
 def A64adrp          : SDNode<"A64ISD::ADRP", SDTIntUnaryOp, []>;
 def A64addlow        : SDNode<"A64ISD::ADDlow", SDTIntBinOp, []>;
+def A64ccmp          : SDNode<"A64ISD::CCMP",  SDT_A64CCMP>;
+def A64ccmn          : SDNode<"A64ISD::CCMN",  SDT_A64CCMP>;
 
 include "A64InstrFormats.td"
 
@@ -218,6 +228,12 @@ def ADR : ADRI<0, "adr", adrlabel>;
 def ADRP : ADRI<1, "adrp", adrplabel>;
 
 def : Pat<(A64adrp tglobaladdr:$label), (ADRP tglobaladdr:$label)>;
+
+//===----------------------------------------------------------------------===//
+// Conditional comparison instructions.
+//===----------------------------------------------------------------------===//
+defm CCMN : CondComparison<0, "ccmn", A64ccmn>;
+defm CCMP : CondComparison<1, "ccmp", A64ccmp>;
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1 in {
 def B  : BranchImm<"b">;
