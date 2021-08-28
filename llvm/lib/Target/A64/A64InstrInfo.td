@@ -106,6 +106,9 @@ defm ORR : LogicalImm<"orr", 0b01, "orn">;
 defm EOR : LogicalImm<"eor", 0b10, "eon">;
 defm ANDS : LogicalImmS<"ands", 0b11, "bics">;
 
+def : Pat<(and GPR64:$src1, logical_imm64:$src2),
+          (ANDXri GPR64:$src1, logical_imm64:$src2)>;
+
 /// Aliases for MOV (architectural)
 def : InstAlias<"mov $dst, $imm", (ORRXri GPR64sp:$dst, XZR, logical_imm64:$imm), 0>;
 

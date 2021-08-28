@@ -280,7 +280,14 @@ let DiagnosticType = "LogicalSecondSource" in {
   }
 }
 
-def logical_imm64 : Operand<i64> {
+def logical_imm64_XFORM : SDNodeXForm<imm, [{
+  uint64_t enc = A64_AM::encodeLogicalImmediate(N->getZExtValue(), 64);
+  return CurDAG->getTargetConstant(enc, SDLoc(N), MVT::i32);
+}]>;
+
+def logical_imm64 : Operand<i64>, IntImmLeaf<i64, [{
+  return A64_AM::isLogicalImmediate(Imm.getZExtValue(), 64);
+}], logical_imm64_XFORM> {
   let PrintMethod = "printLogicalImm";
   let ParserMatchClass = LogicalImm64Operand;
 }
