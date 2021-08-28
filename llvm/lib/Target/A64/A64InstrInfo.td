@@ -232,7 +232,12 @@ let isCall = 1, Defs = [LR], Uses = [SP] in {
 def Bcc : BCond;
 
 // Indirect Branches
+let isBranch = 1, isTerminator = 1, isBarrier = 1, isIndirectBranch = 1 in {
 def BR : BranchReg<0b0000, "br">;
+}
+
+def : Pat<(brind GPR64:$Rn), (BR GPR64:$Rn)>;
+
 let isReturn = 1, isTerminator = 1, isBarrier = 1 in {
 def RET : BranchReg<0b0010, "ret">;
 }
