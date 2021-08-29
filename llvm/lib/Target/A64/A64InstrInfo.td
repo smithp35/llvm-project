@@ -31,6 +31,12 @@ def SDT_A64Brcond  : SDTypeProfile<0, 3,
                                    [SDTCisVT<0, OtherVT>, SDTCisVT<1, i32>,
                                     SDTCisVT<2, i32>]>;
 
+// SDTBinaryArithWithFlagsOut - RES1, FLAGS = op LHS, RHS
+def SDTBinaryArithWithFlagsOut : SDTypeProfile<2, 2,
+                                              [SDTCisSameAs<0, 2>,
+                                               SDTCisSameAs<0, 3>,
+                                               SDTCisInt<0>, SDTCisVT<1, i32>]>;
+
 // Target Specific Nodes
 def A64retflag       : SDNode<"A64ISD::RET_FLAG", SDTNone,
                             [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
@@ -44,6 +50,9 @@ def A64ccmp          : SDNode<"A64ISD::CCMP",  SDT_A64CCMP>;
 def A64ccmn          : SDNode<"A64ISD::CCMN",  SDT_A64CCMP>;
 def A64brcond        : SDNode<"A64ISD::BRCOND", SDT_A64Brcond,
                                 [SDNPHasChain]>;
+def A64add_flag  : SDNode<"A64ISD::ADDS",  SDTBinaryArithWithFlagsOut,
+                            [SDNPCommutative]>;
+def A64sub_flag  : SDNode<"A64ISD::SUBS",  SDTBinaryArithWithFlagsOut>;
 
 include "A64InstrFormats.td"
 
@@ -91,20 +100,43 @@ def : Pat<(sub GPR64:$src1, addsub_shifted_imm64:$src2),
 defm ADDSi : AddSubS<"adds", 0>;
 defm SUBSi : AddSubS<"subs", 1>;
 
+def : Pat<(A64add_flag GPR64:$src1, addsub_shifted_imm64:$src2),
+          (ADDSiXri GPR64:$src1, addsub_shifted_imm64:$src2)>;
+def : Pat<(A64sub_flag GPR64:$src1, addsub_shifted_imm64:$src2),
+          (SUBSiXri GPR64:$src1, addsub_shifted_imm64:$src2)>;
+
+def : InstAlias<"cmp $src, $imm", (SUBSiXri XZR, GPR64sp:$src,
+                                   addsub_shifted_imm64:$imm)>;
+def : InstAlias<"cmn $src, $imm", (ADDSiXri XZR, GPR64sp:$src,
+                                   addsub_shifted_imm64:$imm)>;
+
 defm ADD : AddSubRegGen2<"add", 0>;
 defm SUB : AddSubRegGen2<"sub", 1>;
 defm ADDS : AddSubRegGen2S<"adds", 0>;
 defm SUBS : AddSubRegGen2S<"subs", 1>;
 
+def : InstAlias<"cmp $src, $src2$sh", (SUBSXrs XZR, GPR64:$src,
+                GPR64:$src2, arith_shift64:$sh), 5>;
+def : InstAlias<"cmn $src, $src2$sh", (ADDSXrs XZR, GPR64:$src,
+                GPR64:$src2, arith_shift64:$sh), 5>;
+
 def : Pat<(add GPR64:$src1, arith_shifted_reg64:$src2),
           (ADDXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
 def : Pat<(sub GPR64:$src1, arith_shifted_reg64:$src2),
           (SUBXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
+def : Pat<(A64add_flag GPR64:$src1, arith_shifted_reg64:$src2),
+          (ADDSXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
+def : Pat<(A64sub_flag GPR64:$src1, arith_shifted_reg64:$src2),
+          (SUBSXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
 
 def ADDXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
                     [(set GPR64:$rd, (add GPR64:$rn, GPR64:$rm))]>;
 def SUBXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
                     [(set GPR64:$rd, (sub GPR64:$rn, GPR64:$rm))]>;
+def ADDSXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
+                    [(set GPR64:$rd, (A64add_flag GPR64:$rn, GPR64:$rm))]>;
+def SUBSXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
+                    [(set GPR64:$rd, (A64sub_flag GPR64:$rn, GPR64:$rm))]>;
 
 /// Arm ARM Logical (immediates)
 defm AND : LogicalImm<"and", 0b00, "bic">;
@@ -114,6 +146,10 @@ defm ANDS : LogicalImmS<"ands", 0b11, "bics">;
 
 def : Pat<(and GPR64:$src1, logical_imm64:$src2),
           (ANDXri GPR64:$src1, logical_imm64:$src2)>;
+def : Pat<(or GPR64:$src1,  logical_imm64:$src2),
+          (ORRXri GPR64:$src1, logical_imm64:$src2)>;
+def : Pat<(xor GPR64:$src1,  logical_imm64:$src2),
+          (EORXri GPR64:$src1, logical_imm64:$src2)>;
 
 /// Aliases for MOV (architectural)
 def : InstAlias<"mov $dst, $imm", (ORRXri GPR64sp:$dst, XZR, logical_imm64:$imm), 0>;

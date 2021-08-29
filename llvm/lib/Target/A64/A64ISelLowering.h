@@ -29,6 +29,9 @@ enum NodeType : unsigned {
   ADDlow,   // Add the low 12 bits of a TargetGlobalAddress operand.
   RET_FLAG, // Return with a flag operand. Operand 0 is the chain operand.
   BRCOND,   // Conditional branch instruction; "b.cond".
+  // Arithmetic instructions which write flags.
+  ADDS,
+  SUBS,
 };
 }
 
@@ -49,6 +52,8 @@ public:
 
   /// Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
+
+  SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const override;
 
   const char *getTargetNodeName(unsigned Opcode) const override;
 
@@ -72,6 +77,8 @@ private:
                       SelectionDAG &DAG) const override;
 
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
+
+  SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
 
 };
 

@@ -37,7 +37,8 @@ A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
 
   // Provide all sorts of operation actions
   setOperationAction(ISD::GlobalAddress, MVT::i64, Custom);
-
+  setOperationAction(ISD::BR_CC, MVT::i64, Custom);
+  setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setStackPointerRegisterToSaveRestore(A64::SP);
 
   // Use 0 or 1 for booleans
@@ -56,6 +57,13 @@ const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "A64ISD::ADDlow";
   case A64ISD::RET_FLAG:
     return "A64ISD::RET_FLAG";
+  case A64ISD::BRCOND:
+    return "A64ISD::BRCOND";
+  case A64ISD::ADDS:
+    return "A64ISD::ADDS";
+  case A64ISD::SUBS:
+    return "A64ISD::SUBS";
+
   }
   return nullptr;
 }
@@ -158,14 +166,80 @@ A64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
   return DAG.getNode(A64ISD::RET_FLAG, DL, MVT::Other, RetOps);
 }
 
+/// changeIntCCToAArch64CC - Convert a DAG integer condition code to an AArch64
+/// CC
+static A64CC::CondCode changeIntCCToA64CC(ISD::CondCode CC) {
+  switch (CC) {
+  default:
+    llvm_unreachable("Unknown condition code!");
+  case ISD::SETNE:
+    return A64CC::NE;
+  case ISD::SETEQ:
+    return A64CC::EQ;
+  case ISD::SETGT:
+    return A64CC::GT;
+  case ISD::SETGE:
+    return A64CC::GE;
+  case ISD::SETLT:
+    return A64CC::LT;
+  case ISD::SETLE:
+    return A64CC::LE;
+  case ISD::SETUGT:
+    return A64CC::HI;
+  case ISD::SETUGE:
+    return A64CC::HS;
+  case ISD::SETULT:
+    return A64CC::LO;
+  case ISD::SETULE:
+    return A64CC::LS;
+  }
+}
+
+static const MVT MVT_CC = MVT::i64;
+
+static SDValue emitComparison(SDValue LHS, SDValue RHS, ISD::CondCode CC,
+                              const SDLoc &dl, SelectionDAG &DAG) {
+  EVT VT = LHS.getValueType();
+  unsigned Opcode = A64ISD::SUBS;
+
+  return DAG.getNode(Opcode, dl, DAG.getVTList(VT, MVT_CC), LHS, RHS)
+      .getValue(1);
+}
+
+static SDValue getA64Cmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
+                         SDValue &A64cc, SelectionDAG &DAG, const SDLoc &dl) {
+  SDValue Cmp;
+  A64CC::CondCode A64CC;
+  Cmp = emitComparison(LHS, RHS, CC, dl, DAG);
+  A64CC = changeIntCCToA64CC(CC);
+  A64cc = DAG.getConstant(A64CC, dl, MVT_CC);
+  return Cmp;
+}
+
+SDValue A64TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
+  SDValue Chain = Op.getOperand(0);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
+  SDValue LHS = Op.getOperand(2);
+  SDValue RHS = Op.getOperand(3);
+  SDValue Dest = Op.getOperand(4);
+  SDLoc dl(Op);
+
+  assert((LHS.getValueType() == RHS.getValueType()) &&
+         (LHS.getValueType() == MVT::i64));
+  SDValue CCVal;
+  SDValue Cmp = getA64Cmp(LHS, RHS, CC, CCVal, DAG, dl);
+  return DAG.getNode(A64ISD::BRCOND, dl, MVT::Other, Chain, Dest, CCVal, Cmp);
+}
+
 SDValue A64TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   LLVM_DEBUG(dbgs() << "Custom lowering: ");
   LLVM_DEBUG(Op.dump());
-
   switch (Op.getOpcode()) {
   default:
     llvm_unreachable("unimplemented operand");
     return SDValue();
+  case ISD::BR_CC:
+    return LowerBR_CC(Op, DAG);
   case ISD::GlobalAddress:
     return LowerGlobalAddress(Op, DAG);
   }
@@ -189,4 +263,18 @@ SDValue A64TargetLowering::LowerGlobalAddress(SDValue Op,
       getTargetNode(GN, Ty, DAG, A64II::MO_PAGEOFF | A64II::MO_NC | Flags);
   SDValue ADRP = DAG.getNode(A64ISD::ADRP, DL, Ty, Hi);
   return DAG.getNode(A64ISD::ADDlow, DL, Ty, ADRP, Lo);
+}
+
+SDValue A64TargetLowering::PerformDAGCombine(SDNode *N,
+                                             DAGCombinerInfo &DCI) const {
+  SelectionDAG &DAG = DCI.DAG;
+  switch (N->getOpcode()) {
+  default:
+    LLVM_DEBUG(dbgs() << "Custom combining: skipping\n");
+    break;
+  case A64ISD::BRCOND:
+    // FIXME we can probably omit the expand.
+    return SDValue();
+  }
+  return SDValue();
 }

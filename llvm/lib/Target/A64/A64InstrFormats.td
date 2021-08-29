@@ -239,7 +239,7 @@ class A64Inst<dag outs, dag ins, string asmstr, list<dag> pattern>
 
 class BaseAddSubImm<bit isSub, bit S, string opstr,
                     addsub_shifted_imm immtype>
-    : A64Inst<(outs GPR64sp:$rd),
+    : A64Inst<(outs GPR64:$rd),
               (ins GPR64sp:$rn, immtype:$imm),
               !strconcat(opstr, " $rd, $rn, $imm"), []> {
   bits<5>  rd;
