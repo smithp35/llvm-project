@@ -36,6 +36,10 @@ public:
   /// always be able to get register info as well (through this method).
   const A64RegisterInfo &getRegisterInfo() const { return RI; }
 
+  void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+                   const DebugLoc &DL, MCRegister DestReg, MCRegister SrcReg,
+                   bool KillSrc) const override;
+
 #define GET_INSTRINFO_HELPER_DECLS
 #include "A64GenInstrInfo.inc"
 };
