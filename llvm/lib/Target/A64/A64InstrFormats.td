@@ -571,7 +571,7 @@ def CondCode : AsmOperandClass {
 
 // Condition code.
 // 4-bit immediate. Pretty-printed as <cc>
-def ccode : Operand<i32> {
+def ccode : Operand<i64> {
   let PrintMethod = "printCondCode";
   let ParserMatchClass = CondCode;
 }

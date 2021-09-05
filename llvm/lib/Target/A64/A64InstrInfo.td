@@ -28,8 +28,14 @@ def SDT_A64CCMP : SDTypeProfile<1, 5,
                                  SDTCisVT<5, i32>]>;
 
 def SDT_A64Brcond  : SDTypeProfile<0, 3,
-                                   [SDTCisVT<0, OtherVT>, SDTCisVT<1, i32>,
+                                   [SDTCisVT<0, OtherVT>, SDTCisVT<1, i64>,
                                     SDTCisVT<2, i32>]>;
+
+def SDT_A64CSel  : SDTypeProfile<1, 4,
+                                 [SDTCisSameAs<0, 1>,
+                                  SDTCisSameAs<0, 2>,
+                                  SDTCisInt<3>,
+                                  SDTCisVT<4, i32>]>;
 
 // SDTBinaryArithWithFlagsOut - RES1, FLAGS = op LHS, RHS
 def SDTBinaryArithWithFlagsOut : SDTypeProfile<2, 2,
@@ -53,6 +59,7 @@ def A64brcond        : SDNode<"A64ISD::BRCOND", SDT_A64Brcond,
 def A64add_flag  : SDNode<"A64ISD::ADDS",  SDTBinaryArithWithFlagsOut,
                             [SDNPCommutative]>;
 def A64sub_flag  : SDNode<"A64ISD::SUBS",  SDTBinaryArithWithFlagsOut>;
+def A64csel  : SDNode<"A64ISD::CSEL", SDT_A64CSel>;
 
 include "A64InstrFormats.td"
 
@@ -279,6 +286,8 @@ def : Pat<(A64adrp tglobaladdr:$label), (ADRP tglobaladdr:$label)>;
 //===----------------------------------------------------------------------===//
 def CSEL : CondSelect<0, 0b00, "csel">;
 
+def : Pat<(A64csel GPR64:$src1, GPR64:$src2, (i64 imm:$cond), NZCV),
+          (CSEL GPR64:$src1, GPR64:$src2, imm:$cond)>;
 //===----------------------------------------------------------------------===//
 // Conditional comparison instructions.
 //===----------------------------------------------------------------------===//

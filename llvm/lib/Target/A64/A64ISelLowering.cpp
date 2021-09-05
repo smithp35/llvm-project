@@ -39,6 +39,7 @@ A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::GlobalAddress, MVT::i64, Custom);
   setOperationAction(ISD::BR_CC, MVT::i64, Custom);
   setOperationAction(ISD::BRCOND, MVT::Other, Expand);
+  setOperationAction(ISD::SETCC, MVT::i64, Custom);
   setStackPointerRegisterToSaveRestore(A64::SP);
 
   // Use 0 or 1 for booleans
@@ -63,7 +64,8 @@ const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "A64ISD::ADDS";
   case A64ISD::SUBS:
     return "A64ISD::SUBS";
-
+  case A64ISD::CSEL:
+    return "A64ISD::CSEL";
   }
   return nullptr;
 }
@@ -231,6 +233,27 @@ SDValue A64TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   return DAG.getNode(A64ISD::BRCOND, dl, MVT::Other, Chain, Dest, CCVal, Cmp);
 }
 
+SDValue A64TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
+
+  SDValue LHS = Op.getOperand(0);
+  SDValue RHS = Op.getOperand(1);
+  ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(2))->get();
+  SDLoc dl(Op);
+
+  // We chose ZeroOrOneBooleanContents, so use zero and one.
+  EVT VT = Op.getValueType();
+  SDValue TVal = DAG.getConstant(1, dl, VT);
+  SDValue FVal = DAG.getConstant(0, dl, VT);
+
+  assert(LHS.getValueType().isInteger());
+
+  SDValue CCVal;
+  SDValue Cmp = getA64Cmp(LHS, RHS, CC, CCVal, DAG, dl);
+
+  SDValue Res = DAG.getNode(A64ISD::CSEL, dl, VT, TVal, FVal, CCVal, Cmp);
+  return Res;
+}
+
 SDValue A64TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   LLVM_DEBUG(dbgs() << "Custom lowering: ");
   LLVM_DEBUG(Op.dump());
@@ -240,6 +263,8 @@ SDValue A64TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
     return SDValue();
   case ISD::BR_CC:
     return LowerBR_CC(Op, DAG);
+  case ISD::SETCC:
+    return LowerSETCC(Op, DAG);
   case ISD::GlobalAddress:
     return LowerGlobalAddress(Op, DAG);
   }

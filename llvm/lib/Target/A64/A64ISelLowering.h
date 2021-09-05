@@ -32,6 +32,8 @@ enum NodeType : unsigned {
   // Arithmetic instructions which write flags.
   ADDS,
   SUBS,
+  // Conditional Select
+  CSEL
 };
 }
 
@@ -79,7 +81,7 @@ private:
   SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
 
   SDValue LowerBR_CC(SDValue Op, SelectionDAG &DAG) const;
-
+  SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
 };
 
 } // namespace llvm
