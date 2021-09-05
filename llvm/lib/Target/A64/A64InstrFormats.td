@@ -724,6 +724,26 @@ class BranchReg<bits<4> opc, string opstr>
   let Inst{9-5} = Rn;
 }
 
+class CondSelect<bit op, bits<2> op2, string asm>
+    : A64Inst<(outs GPR64:$Rd), (ins GPR64:$Rn, GPR64:$Rm, ccode:$cond),
+         !strconcat(asm, "\t$Rd, $Rn, $Rm, $cond"),[]> {
+  let Uses = [NZCV];
+
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  bits<4> cond;
+
+  let Inst{31}    = 0b1;
+  let Inst{30}    = op;
+  let Inst{29-21} = 0b011010100;
+  let Inst{20-16} = Rm;
+  let Inst{15-12} = cond;
+  let Inst{11-10} = op2;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+}
+
 class DataProcessingReg3 <bits<2> op54, bits<3> op31, bits<1> o0,
                           dag outs, dag ins, string asmstr,
                           list<dag> pattern>

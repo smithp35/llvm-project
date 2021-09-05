@@ -966,7 +966,8 @@ bool A64AsmParser::ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
 
   // Conditional compare instructions have a Condition Code operand, which needs
   // to be parsed and an immediate operand created.
-  bool condCodeFourthOperand = (Head == "ccmp" || Head == "ccmn");
+  bool condCodeFourthOperand =
+      (Head == "ccmp" || Head == "ccmn" || Head == "csel");
 
   // Parse first operand
   if (parseOperand(Operands, Mnemonic, /* isCondCode */ false))

@@ -275,8 +275,14 @@ def ADRP : ADRI<1, "adrp", adrplabel>;
 def : Pat<(A64adrp tglobaladdr:$label), (ADRP tglobaladdr:$label)>;
 
 //===----------------------------------------------------------------------===//
+// Conditional select instructions.
+//===----------------------------------------------------------------------===//
+def CSEL : CondSelect<0, 0b00, "csel">;
+
+//===----------------------------------------------------------------------===//
 // Conditional comparison instructions.
 //===----------------------------------------------------------------------===//
+
 defm CCMN : CondComparison<0, "ccmn", A64ccmn>;
 defm CCMP : CondComparison<1, "ccmp", A64ccmp>;
 
