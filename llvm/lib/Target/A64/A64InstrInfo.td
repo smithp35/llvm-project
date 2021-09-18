@@ -131,6 +131,7 @@ def : Pat<(add GPR64:$src1, arith_shifted_reg64:$src2),
           (ADDXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
 def : Pat<(sub GPR64:$src1, arith_shifted_reg64:$src2),
           (SUBXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
+
 def : Pat<(A64add_flag GPR64:$src1, arith_shifted_reg64:$src2),
           (ADDSXrs GPR64:$src1, arith_shifted_reg64:$src2)>;
 def : Pat<(A64sub_flag GPR64:$src1, arith_shifted_reg64:$src2),
@@ -140,10 +141,12 @@ def ADDXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
                     [(set GPR64:$rd, (add GPR64:$rn, GPR64:$rm))]>;
 def SUBXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
                     [(set GPR64:$rd, (sub GPR64:$rn, GPR64:$rm))]>;
+let Defs = [NZCV], isCompare = 1 in {
 def ADDSXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
                     [(set GPR64:$rd, (A64add_flag GPR64:$rn, GPR64:$rm))]>;
 def SUBSXrr : Pseudo<(outs GPR64:$rd), (ins GPR64:$rn, GPR64:$rm),
                     [(set GPR64:$rd, (A64sub_flag GPR64:$rn, GPR64:$rm))]>;
+}
 
 /// Arm ARM Logical (immediates)
 defm AND : LogicalImm<"and", 0b00, "bic">;
