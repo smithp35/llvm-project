@@ -16,6 +16,10 @@
 #include "A64Subtarget.h"
 #include "MCTargetDesc/A64AddressingModes.h"
 #include "Utils/A64BaseInfo.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
@@ -52,4 +56,57 @@ void A64InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
          << TRI.getRegAsmName(SrcReg) << "\n";
 #endif
   llvm_unreachable("unimplemented reg-to-reg copy");
+}
+
+void A64InstrInfo::storeRegToStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, Register SrcReg,
+    bool isKill, int FI, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI) const {
+
+  MachineFunction &MF = *MBB.getParent();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+
+  MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, FI);
+  MachineMemOperand *MMO =
+      MF.getMachineMemOperand(PtrInfo, MachineMemOperand::MOStore,
+                              MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
+
+  assert(TRI->getSpillSize(*RC) == 8);
+  unsigned Opc = A64::STRXui;
+  if (Register::isVirtualRegister(SrcReg))
+    MF.getRegInfo().constrainRegClass(SrcReg, &A64::GPR64RegClass);
+  else
+    assert(SrcReg != A64::SP);
+
+  const MachineInstrBuilder MI = BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
+                                     .addReg(SrcReg, getKillRegState(isKill))
+                                     .addFrameIndex(FI)
+                                     .addImm(0)
+                                     .addMemOperand(MMO);
+}
+
+void A64InstrInfo::loadRegFromStackSlot(
+    MachineBasicBlock &MBB, MachineBasicBlock::iterator MBBI, Register DestReg,
+    int FI, const TargetRegisterClass *RC,
+    const TargetRegisterInfo *TRI) const {
+
+  MachineFunction &MF = *MBB.getParent();
+  MachineFrameInfo &MFI = MF.getFrameInfo();
+  MachinePointerInfo PtrInfo = MachinePointerInfo::getFixedStack(MF, FI);
+  MachineMemOperand *MMO =
+      MF.getMachineMemOperand(PtrInfo, MachineMemOperand::MOLoad,
+                              MFI.getObjectSize(FI), MFI.getObjectAlign(FI));
+
+  assert(TRI->getSpillSize(*RC) == 8);
+  unsigned Opc = A64::LDRXui;
+  if (Register::isVirtualRegister(DestReg))
+    MF.getRegInfo().constrainRegClass(DestReg, &A64::GPR64RegClass);
+  else
+    assert(DestReg != A64::SP);
+
+  const MachineInstrBuilder MI = BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
+                                     .addReg(DestReg, getDefRegState(true))
+                                     .addFrameIndex(FI)
+                                     .addImm(0)
+                                     .addMemOperand(MMO);
 }

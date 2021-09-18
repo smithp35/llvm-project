@@ -3902,7 +3902,6 @@ void AArch64InstrInfo::storeRegToStackSlot(
   const MachineInstrBuilder MI = BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
                                      .addReg(SrcReg, getKillRegState(isKill))
                                      .addFrameIndex(FI);
-
   if (Offset)
     MI.addImm(0);
   MI.addMemOperand(MMO);
