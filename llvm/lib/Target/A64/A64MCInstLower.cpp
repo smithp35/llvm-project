@@ -61,6 +61,10 @@ bool A64MCInstLower::lowerOperand(const MachineOperand &MO,
   switch (MO.getType()) {
   default:
     llvm_unreachable("unknown operand type");
+  case MachineOperand::MO_MachineBasicBlock:
+    MCOp = MCOperand::createExpr(
+        MCSymbolRefExpr::create(MO.getMBB()->getSymbol(), Ctx));
+    break;
   case MachineOperand::MO_Register:
     // Ignore all implicit register operands.
     if (MO.isImplicit())
