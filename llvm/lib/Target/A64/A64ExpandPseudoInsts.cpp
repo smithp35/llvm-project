@@ -210,11 +210,17 @@ bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
   default:
     break;
   case A64::ADDXrr:
-  case A64::SUBXrr: {
+  case A64::SUBXrr:
+  case A64::ADDSXrr:
+  case A64::SUBSXrr: {
     if (Opcode == A64::ADDXrr)
       Opcode = A64::ADDXrs;
-    else
+    else if (Opcode == A64::SUBXrr)
       Opcode = A64::SUBXrs;
+    else if (Opcode == A64::ADDSXrr)
+      Opcode = A64::ADDSXrs;
+    else
+      Opcode = A64::SUBSXrs;
     MachineInstrBuilder MIB1 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(Opcode),
                 MI.getOperand(0).getReg())
