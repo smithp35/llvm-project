@@ -744,6 +744,22 @@ class CondSelect<bit op, bits<2> op2, string asm>
   let Inst{4-0}   = Rd;
 }
 
+class Shift<bits<2> shift_type, string asm>
+    : A64Inst<(outs GPR64:$Rd), (ins GPR64:$Rn, GPR64:$Rm),
+              !strconcat(asm, "\t$Rd, $Rn, $Rm"),[]> {
+  let Inst{31}    = 0b1;
+  let Inst{11-10} = shift_type;
+  bits<5> Rd;
+  bits<5> Rn;
+  bits<5> Rm;
+  let Inst{30-21} = 0b0011010110;
+  let Inst{20-16} = Rm;
+  let Inst{15-14} = 0b00;
+  let Inst{13-12} = 0b10;
+  let Inst{9-5}   = Rn;
+  let Inst{4-0}   = Rd;
+}
+
 class DataProcessingReg3 <bits<2> op54, bits<3> op31, bits<1> o0,
                           dag outs, dag ins, string asmstr,
                           list<dag> pattern>

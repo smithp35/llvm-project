@@ -185,6 +185,20 @@ def : Pat<(xor GPR64:$src1, logical_shifted_reg64:$src2),
 defm ANDSr : LogicalRegGenS<"ands", 0b11, 0b0>;
 defm BICSr : LogicalRegGenS<"bics", 0b11, 0b1>;
 
+def ASRV : Shift<0b10, "asr">;
+def LSLV : Shift<0b00, "lsl">;
+def LSRV : Shift<0b01, "lsr">;
+def RORV : Shift<0b11, "ror">;
+
+def : Pat<(sra GPR64:$src1, GPR64:$src2),
+          (ASRV GPR64:$src1, GPR64:$src2)>;
+def : Pat<(shl GPR64:$src1, GPR64:$src2),
+          (LSLV GPR64:$src1, GPR64:$src2)>;
+def : Pat<(srl GPR64:$src1, GPR64:$src2),
+          (LSRV GPR64:$src1, GPR64:$src2)>;
+def : Pat<(rotr GPR64:$src1, GPR64:$src2),
+          (RORV GPR64:$src1, GPR64:$src2)>;
+
 /// MOV alias (architectural)
 def : InstAlias<"mov $dst, $src", (ORRrXrs GPR64:$dst, XZR, GPR64:$src, 0), 2>;
 def : InstAlias<"mvn $Xd, $Xm", (ORNrXrs GPR64:$Xd, XZR, GPR64:$Xm, 0), 3>;
