@@ -14,6 +14,7 @@
 #include "A64RegisterInfo.h"
 #include "A64FrameLowering.h"
 #include "A64InstrInfo.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 
 using namespace llvm;
 
@@ -46,12 +47,7 @@ BitVector A64RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
 bool A64RegisterInfo::requiresRegisterScavenging(
     const MachineFunction &MF) const {
-  return false;
-}
-
-bool A64RegisterInfo::trackLivenessAfterRegAlloc(
-    const MachineFunction &MF) const {
-  return false;
+  return true;
 }
 
 bool A64RegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
@@ -61,7 +57,30 @@ bool A64RegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
 void A64RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                           int SPAdj, unsigned FIOperandNum,
                                           RegScavenger *RS) const {
-  // TODO Implement
+  MachineInstr &MI = *II;
+  const MachineFunction &MF = *MI.getParent()->getParent();
+  const MachineFrameInfo &MFI = MF.getFrameInfo();
+
+  MachineOperand &FIOp = MI.getOperand(FIOperandNum);
+  unsigned FI = FIOp.getIndex();
+
+  // Determine if we can eliminate the index from this kind of instruction.
+  unsigned ImmOpIdx = 0;
+  switch (MI.getOpcode()) {
+  default:
+    // Not supported yet.
+    assert(false && "MI not supported yet");
+    return;
+  case A64::LDRXui:
+  case A64::STRXui:
+    ImmOpIdx = FIOperandNum + 1;
+    break;
+  }
+  MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
+  int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize() + ImmOp.getImm();
+  FIOp.ChangeToRegister(A64::FP, false);
+  // Offset for LDRXui is scaled
+  ImmOp.setImm(Offset / 8);
 }
 
 // Debug information queries.

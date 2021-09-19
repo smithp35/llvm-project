@@ -60,6 +60,7 @@ bool A64MCInstLower::lowerOperand(const MachineOperand &MO,
                                   MCOperand &MCOp) const {
   switch (MO.getType()) {
   default:
+    MO.dump();
     llvm_unreachable("unknown operand type");
   case MachineOperand::MO_MachineBasicBlock:
     MCOp = MCOperand::createExpr(
@@ -79,6 +80,8 @@ bool A64MCInstLower::lowerOperand(const MachineOperand &MO,
     MCOp = lowerSymbolOperand(MO, Printer.getSymbolPreferLocal(*GV));
     break;
   }
+  case MachineOperand::MO_RegisterMask:
+    break;
   }
   return true;
 }

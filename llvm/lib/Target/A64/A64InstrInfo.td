@@ -323,6 +323,11 @@ let isCall = 1, Defs = [LR], Uses = [SP] in {
   def BL : CallImm<"bl">;
 }
 
+def : Pat<(A64call tglobaladdr:$addr),
+          (BL tglobaladdr:$addr)>;
+def : Pat<(A64call texternalsym:$addr),
+          (BL texternalsym:$addr)>;
+
 // Conditional branch
 def Bcc : BCond;
 

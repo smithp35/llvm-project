@@ -30,6 +30,15 @@ void A64FrameLowering::emitPrologue(MachineFunction &MF,
   const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
+  // If we have a frame pointer we need to update it
+  if (hasFP(MF)) {
+    BuildMI(MBB, MBBI, dl, TII.get(A64::SUBiXri), A64::FP)
+        .addReg(A64::SP)
+        .addImm(0)
+        .addImm(0)
+        .setMIFlag(MachineInstr::FrameSetup);
+  }
+
   unsigned StackReg = A64::SP;
   // TODO Support sizes greater than the immediate in an ADD/SUB instruction
   BuildMI(MBB, MBBI, dl, TII.get(A64::SUBiXri), StackReg)
@@ -60,6 +69,15 @@ void A64FrameLowering::emitEpilogue(MachineFunction &MF,
       .addImm(StackSize)
       .addImm(0)
       .setMIFlag(MachineInstr::FrameSetup);
+
+  // If we have a frame pointer we need to update it
+  if (hasFP(MF)) {
+    BuildMI(MBB, MBBI, dl, TII.get(A64::ADDiXri), A64::FP)
+        .addReg(A64::SP)
+        .addImm(0)
+        .addImm(0)
+        .setMIFlag(MachineInstr::FrameSetup);
+  }
 }
 
 MachineBasicBlock::iterator A64FrameLowering::eliminateCallFramePseudoInstr(
@@ -69,6 +87,7 @@ MachineBasicBlock::iterator A64FrameLowering::eliminateCallFramePseudoInstr(
 }
 
 bool A64FrameLowering::hasFP(const MachineFunction &MF) const {
-  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-         MF.getFrameInfo().hasVarSizedObjects();
+  return true;
+  //  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
+  //       MF.getFrameInfo().hasVarSizedObjects();
 }
