@@ -78,7 +78,7 @@ void A64RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   }
   MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
   int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize() + ImmOp.getImm();
-  FIOp.ChangeToRegister(A64::FP, false);
+  FIOp.ChangeToRegister(A64::SP, false);
   // Offset for LDRXui is scaled
   ImmOp.setImm(Offset / 8);
 }

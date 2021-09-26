@@ -87,7 +87,6 @@ MachineBasicBlock::iterator A64FrameLowering::eliminateCallFramePseudoInstr(
 }
 
 bool A64FrameLowering::hasFP(const MachineFunction &MF) const {
-  return true;
-  //  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
-  //       MF.getFrameInfo().hasVarSizedObjects();
+  return MF.getTarget().Options.DisableFramePointerElim(MF) ||
+         MF.getFrameInfo().hasVarSizedObjects();
 }
