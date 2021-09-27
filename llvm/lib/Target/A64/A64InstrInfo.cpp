@@ -47,6 +47,11 @@ void A64InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
       BuildMI(MBB, I, DL, get(A64::MOVZ), DestReg)
           .addImm(0)
           .addImm(A64_AM::getShifterImm(A64_AM::LSL, 0));
+    } else {
+      BuildMI(MBB, I, DL, get(A64::ORRrXrs), DestReg)
+        .addReg(A64::XZR)
+        .addReg(SrcReg, getKillRegState(KillSrc))
+        .addImm(A64_AM::getShifterImm(A64_AM::LSL, 0));
     }
     return;
   }
