@@ -19,3 +19,14 @@ entry:
 ; CHECK-LABEL: add2:
 ; CHECK:       add x0, x0, #4
 ; CHECK-LABEL: ret
+
+define i64 @addshift(i64 %x, i64 %y) {
+entry:
+  %shl = shl i64 %y, 4
+  %add = add nsw i64 %shl, %x
+  ret i64 %add
+}
+
+; CHECK-LABEL:  addshift:
+; CHECK: 	add x0, x0, x1, lsl #4
+; CHECK-NEXT: 	ret
