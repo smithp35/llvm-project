@@ -209,6 +209,8 @@ bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
   switch (Opcode) {
   default:
     break;
+  // Xrr for register, register without a Shift, translate to
+  // A left shift of 0.
   case A64::ADDXrr:
   case A64::SUBXrr:
   case A64::ADDSXrr:
@@ -233,6 +235,7 @@ bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     break;
   }
   case A64::MOVaddr: {
+    // MOVaddr translates to an ADRP, ADD pair.
     Register DstReg = MI.getOperand(0).getReg();
     MachineInstrBuilder MIB1 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(A64::ADRP), DstReg)
@@ -249,6 +252,7 @@ bool A64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     return true;
   }
   case A64::MOVi64imm:
+    // Expands into several MOV instructions.
     return expandMOVImm(MBB, MBBI);
   }
   return false;

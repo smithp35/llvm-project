@@ -26,7 +26,6 @@ class A64Subtarget;
 
 class A64InstrInfo final : public A64GenInstrInfo {
   const A64RegisterInfo RI;
-  const A64Subtarget &Subtarget;
 
 public:
   explicit A64InstrInfo(const A64Subtarget &STI);

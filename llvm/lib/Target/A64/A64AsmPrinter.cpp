@@ -42,6 +42,8 @@ public:
 } // namespace
 
 void A64AsmPrinter::emitInstruction(const MachineInstr *MI) {
+  // Trivial implementation. Majority of work is handed off
+  // to MCInstLowering with output forwarded to the streamer.
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
 

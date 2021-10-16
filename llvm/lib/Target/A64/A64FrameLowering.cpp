@@ -16,6 +16,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "frame-info"
 
+// Largely adapted from the LEG backend. Likely to not be AAPCS64
+// compliant, and likely to only handle simple cases.
 void A64FrameLowering::emitPrologue(MachineFunction &MF,
                                     MachineBasicBlock &MBB) const {
   const MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -31,6 +33,7 @@ void A64FrameLowering::emitPrologue(MachineFunction &MF,
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   // If we have a frame pointer we need to update it
+  // Set it to be the same as the stack pointer.
   if (hasFP(MF)) {
     BuildMI(MBB, MBBI, dl, TII.get(A64::SUBiXri), A64::FP)
         .addReg(A64::SP)

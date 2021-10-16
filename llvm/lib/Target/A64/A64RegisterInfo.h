@@ -24,7 +24,6 @@ class TargetRegisterClass;
 class Triple;
 
 class A64RegisterInfo final : public A64GenRegisterInfo {
-  const Triple &TT;
 
 public:
   A64RegisterInfo(const Triple &TT);

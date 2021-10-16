@@ -38,7 +38,6 @@ A64TargetLowering::A64TargetLowering(const TargetMachine &TM,
   // Provide all sorts of operation actions
   setOperationAction(ISD::GlobalAddress, MVT::i64, Custom);
   setOperationAction(ISD::BR_CC, MVT::i64, Custom);
-  setOperationAction(ISD::BRCOND, MVT::Other, Expand);
   setOperationAction(ISD::SETCC, MVT::i64, Custom);
   setStackPointerRegisterToSaveRestore(A64::SP);
 
@@ -76,6 +75,7 @@ const char *A64TargetLowering::getTargetNodeName(unsigned Opcode) const {
 
 #include "A64GenCallingConv.inc"
 
+// Adapted from LEG backend. May not be AAPCS64 compliant.
 SDValue A64TargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
@@ -99,12 +99,14 @@ SDValue A64TargetLowering::LowerFormalArguments(
              "Only support MVT::i64 register passing");
       const unsigned VReg = RegInfo.createVirtualRegister(&A64::GPR64RegClass);
       RegInfo.addLiveIn(VA.getLocReg(), VReg);
+      // Insert CopyFromReg nodes to DAG.
       SDValue ArgIn = DAG.getCopyFromReg(Chain, DL, VReg, RegVT);
 
       InVals.push_back(ArgIn);
       continue;
     }
 
+    // Remaining arguments on Stack.
     assert(VA.isMemLoc() &&
            "Can only pass arguments as either registers or via the stack");
 
@@ -116,6 +118,7 @@ SDValue A64TargetLowering::LowerFormalArguments(
 
     assert(VA.getValVT() == MVT::i64 &&
            "Only support passing arguments as i64");
+    // Load from stack.
     SDValue Load =
         DAG.getLoad(VA.getValVT(), DL, Chain, FIPtr, MachinePointerInfo());
 
@@ -152,6 +155,7 @@ A64TargetLowering::LowerReturn(SDValue Chain, CallingConv::ID CallConv,
     CCValAssign &VA = RVLocs[i];
     assert(VA.isRegLoc() && "Can only return in registers!");
 
+    // Insert CopyToReg node.
     Chain = DAG.getCopyToReg(Chain, DL, VA.getLocReg(), OutVals[i], Flag);
 
     Flag = Chain.getValue(1);
@@ -181,8 +185,6 @@ SDValue A64TargetLowering::LowerCall(CallLoweringInfo &CLI,
   SDValue Callee = CLI.Callee;
   CallingConv::ID CallConv = CLI.CallConv;
   bool IsVarArg = CLI.IsVarArg;
-
-  CLI.IsTailCall = false;
 
   if (IsVarArg)
     llvm_unreachable("Unimplemented vararg call");
@@ -217,7 +219,7 @@ SDValue A64TargetLowering::LowerCall(CallLoweringInfo &CLI,
       RegsToPass.push_back(std::make_pair(VA.getLocReg(), Arg));
       continue;
     }
-
+    // Remaining parameters passed on the stack.
     assert(VA.isMemLoc() &&
            "Only support passing arguments through registers or via the stack");
 
@@ -344,25 +346,19 @@ static A64CC::CondCode changeIntCCToA64CC(ISD::CondCode CC) {
 
 static const MVT MVT_CC = MVT::i64;
 
-static SDValue emitComparison(SDValue LHS, SDValue RHS, ISD::CondCode CC,
-                              const SDLoc &dl, SelectionDAG &DAG) {
-  EVT VT = LHS.getValueType();
-  unsigned Opcode = A64ISD::SUBS;
-
-  return DAG.getNode(Opcode, dl, DAG.getVTList(VT, MVT_CC), LHS, RHS)
-      .getValue(1);
-}
-
 static SDValue getA64Cmp(SDValue LHS, SDValue RHS, ISD::CondCode CC,
                          SDValue &A64cc, SelectionDAG &DAG, const SDLoc &dl) {
-  SDValue Cmp;
   A64CC::CondCode A64CC;
-  Cmp = emitComparison(LHS, RHS, CC, dl, DAG);
+  EVT VT = LHS.getValueType();
+  unsigned Opcode = A64ISD::SUBS;
+  SDValue Cmp =
+      DAG.getNode(Opcode, dl, DAG.getVTList(VT, MVT_CC), LHS, RHS).getValue(1);
   A64CC = changeIntCCToA64CC(CC);
   A64cc = DAG.getConstant(A64CC, dl, MVT_CC);
   return Cmp;
 }
 
+// BRCC lowers to a comparison followed by BRCOND
 SDValue A64TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   ISD::CondCode CC = cast<CondCodeSDNode>(Op.getOperand(1))->get();
@@ -377,7 +373,7 @@ SDValue A64TargetLowering::LowerBR_CC(SDValue Op, SelectionDAG &DAG) const {
   SDValue Cmp = getA64Cmp(LHS, RHS, CC, CCVal, DAG, dl);
   return DAG.getNode(A64ISD::BRCOND, dl, MVT::Other, Chain, Dest, CCVal, Cmp);
 }
-
+// SETCC lowered to a comparison then conditional select between 0 and 1
 SDValue A64TargetLowering::LowerSETCC(SDValue Op, SelectionDAG &DAG) const {
 
   SDValue LHS = Op.getOperand(0);
@@ -421,6 +417,7 @@ static SDValue getTargetNode(GlobalAddressSDNode *N, EVT Ty, SelectionDAG &DAG,
                                     N->getOffset(), Flag);
 }
 
+// A global address is lowered to the pair ADRP, ADD
 SDValue A64TargetLowering::LowerGlobalAddress(SDValue Op,
                                               SelectionDAG &DAG) const {
   GlobalAddressSDNode *GN = cast<GlobalAddressSDNode>(Op);
@@ -437,14 +434,10 @@ SDValue A64TargetLowering::LowerGlobalAddress(SDValue Op,
 
 SDValue A64TargetLowering::PerformDAGCombine(SDNode *N,
                                              DAGCombinerInfo &DCI) const {
-  SelectionDAG &DAG = DCI.DAG;
   switch (N->getOpcode()) {
   default:
     LLVM_DEBUG(dbgs() << "Custom combining: skipping\n");
     break;
-  case A64ISD::BRCOND:
-    // FIXME we can probably omit the expand.
-    return SDValue();
   }
   return SDValue();
 }

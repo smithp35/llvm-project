@@ -22,7 +22,7 @@ using namespace llvm;
 #include "A64GenRegisterInfo.inc"
 
 A64RegisterInfo::A64RegisterInfo(const Triple &TT)
-    : A64GenRegisterInfo(A64::LR), TT(TT) {}
+    : A64GenRegisterInfo(A64::LR) {}
 
 const uint16_t *
 A64RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
@@ -54,6 +54,7 @@ bool A64RegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
   return false;
 }
 
+// FrameIndexes are locations on the stack. Replace index with offset.
 void A64RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
                                           int SPAdj, unsigned FIOperandNum,
                                           RegScavenger *RS) const {
@@ -77,9 +78,10 @@ void A64RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     break;
   }
   MachineOperand &ImmOp = MI.getOperand(ImmOpIdx);
+  // Calculate offset from frame index.
   int Offset = MFI.getObjectOffset(FI) + MFI.getStackSize() + ImmOp.getImm();
   FIOp.ChangeToRegister(A64::SP, false);
-  // Offset for LDRXui is scaled
+  // Offset for LDRXui is scaled by 8
   ImmOp.setImm(Offset / 8);
 }
 

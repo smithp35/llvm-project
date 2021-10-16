@@ -29,7 +29,7 @@ using namespace llvm;
 
 A64InstrInfo::A64InstrInfo(const A64Subtarget &STI)
     : A64GenInstrInfo(A64::ADJCALLSTACKDOWN, A64::ADJCALLSTACKUP),
-      RI(STI.getTargetTriple()), Subtarget(STI) {}
+      RI(STI.getTargetTriple()) {}
 
 void A64InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
                                MachineBasicBlock::iterator I,
@@ -48,6 +48,7 @@ void A64InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
           .addImm(0)
           .addImm(A64_AM::getShifterImm(A64_AM::LSL, 0));
     } else {
+      // ORR with XZR as one of the sources.
       BuildMI(MBB, I, DL, get(A64::ORRrXrs), DestReg)
         .addReg(A64::XZR)
         .addReg(SrcReg, getKillRegState(KillSrc))
@@ -83,11 +84,11 @@ void A64InstrInfo::storeRegToStackSlot(
   else
     assert(SrcReg != A64::SP);
 
-  const MachineInstrBuilder MI = BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
-                                     .addReg(SrcReg, getKillRegState(isKill))
-                                     .addFrameIndex(FI)
-                                     .addImm(0)
-                                     .addMemOperand(MMO);
+  BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
+      .addReg(SrcReg, getKillRegState(isKill))
+      .addFrameIndex(FI)
+      .addImm(0)
+      .addMemOperand(MMO);
 }
 
 void A64InstrInfo::loadRegFromStackSlot(
@@ -109,9 +110,9 @@ void A64InstrInfo::loadRegFromStackSlot(
   else
     assert(DestReg != A64::SP);
 
-  const MachineInstrBuilder MI = BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
-                                     .addReg(DestReg, getDefRegState(true))
-                                     .addFrameIndex(FI)
-                                     .addImm(0)
-                                     .addMemOperand(MMO);
+  BuildMI(MBB, MBBI, DebugLoc(), get(Opc))
+      .addReg(DestReg, getDefRegState(true))
+      .addFrameIndex(FI)
+      .addImm(0)
+      .addMemOperand(MMO);
 }
