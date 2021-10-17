@@ -6,6 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+def uimm12 : Operand<i32>, ImmLeaf<i32, [{
+    return Imm >= 0 && Imm < 4096;
+}]>;
+
 /// Helper class to describe immediates within a range
 class AsmImmRange<int Low, int High> : AsmOperandClass {
   let Name = "Imm" # Low # "_" # High;
@@ -400,13 +404,13 @@ class AddSubRegAlias<string asm, Instruction inst, RegisterClass regtype>
     : InstAlias<asm#"\t$dst, $src1, $src2",
                 (inst regtype:$dst, regtype:$src1, regtype:$src2, 0)>;
 
-multiclass AddSubRegGen2<string opstr, bits<1> op> {
+multiclass AddSubRegGen<string opstr, bits<1> op> {
   def Xrs : AddSubRegBase<opstr, op, 0b0>;
   def : AddSubRegAlias<opstr, !cast<Instruction>(NAME#"Xrs"), GPR64>;
 }
 
 // Flag Setting Variant of Add Sub register
-multiclass AddSubRegGen2S<string opstr, bits<1> op> {
+multiclass AddSubRegGenS<string opstr, bits<1> op> {
   def Xrs : AddSubRegBase<opstr, op, 0b1> {
     let Defs = [NZCV];
   }
@@ -774,17 +778,6 @@ class DataProcessingReg3 <bits<2> op54, bits<3> op31, bits<1> o0,
     let Inst{15} = o0;
 }
 
-class DataProcessingImm <bits<3> opcode, dag outs, dag ins, string asmstr,
-                         list<dag> pattern>
-    : A64Inst<outs, ins, asmstr, pattern> {
-    let hasSideEffects = 0;
-    let mayLoad = 0;
-    let mayStore = 0;
-    let Inst{31} = 0b1;
-    let Inst{28-26} = 0b100;
-    let Inst{25-23} = opcode;
-}
-
 class LoadStore <dag outs, dag ins, string asmstr, list<dag> pattern>
     : A64Inst<outs, ins, asmstr, pattern> {
     let Inst{27} = 0b1;
@@ -805,4 +798,34 @@ class Hint <bits<4> CRm, bits<3> op2, dag outs, dag ins, string asmstr,
     let Inst{11-8}  = CRm;
     let Inst{7-5}   = op2;
     let Inst{4-0}   = 0b11111;
+}
+
+class MultiplyAccSub <string opstr, bits<1> o0>
+    : DataProcessingReg3<0b00, 0b000, o0,
+                         (outs GPR64sp:$rd),
+                         (ins GPR64sp:$rm, GPR64sp:$ra, GPR64sp:$rn),
+                         !strconcat(opstr, " $rd, $rn, $rm, $ra"), []> {
+    bits<5> rm;
+    bits<5> ra;
+    bits<5> rn;
+    bits<5> rd;
+    let Inst{20-16} = rm;
+    let Inst{15} = o0;
+    let Inst{14-10} = ra;
+    let Inst{9-5} = rn;
+    let Inst{4-0} = rd;
+}
+
+// Mul is an alias of MADD it may be possible to refactor to make this
+// an alias in tablegen.
+class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
+                               (outs GPR64sp:$rd),
+                               (ins GPR64sp:$rn, GPR64sp:$rm),
+                               "mul $rd, $rn, $rm", []> {
+    bits<5> rm;
+    bits<5> rn;
+    bits<5> rd;
+    let Inst{20-16} = rm;
+    let Inst{9-5} = rn;
+    let Inst{4-0} = rd;
 }
