@@ -6,11 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-def uimm12 : Operand<i32>, ImmLeaf<i32, [{
-    return Imm >= 0 && Imm < 4096;
-}]>;
+// Describes the format of instructions and operands so that we can
+// keep A64InstrInfo.td simple.
 
-/// Helper class to describe immediates within a range
+def uimm12 : Operand<i32>,
+             ImmLeaf<i32, [{ return Imm >= 0 && Imm < 4096; }]>;
+
+// Helper class to describe immediates within a range
+// Low to High. Can derive more specific classes for
+// a particular range.
 class AsmImmRange<int Low, int High> : AsmOperandClass {
   let Name = "Imm" # Low # "_" # High;
   let DiagnosticType = "InvalidImm" # Low # "_" # High;
@@ -18,43 +22,46 @@ class AsmImmRange<int Low, int High> : AsmOperandClass {
   let PredicateMethod = "isImmInRange<" # Low # "," # High # ">";
 }
 
+// Branch target with immediate range N
 class BranchTarget<int N> : AsmOperandClass {
   let Name = "BranchTarget" # N;
   let DiagnosticType = "InvalidLabel";
   let PredicateMethod = "isBranchTarget<" # N # ">";
 }
 
+// A kind of alias for BranchTarget<N>
 class PCRelLabel<int N> : BranchTarget<N> {
   let Name = "PCRelLabel" # N;
 }
 
+// 15 bit Immediate
 def Imm0_15Operand : AsmImmRange<0, 15>;
 
 // imm32_0_15 predicate - True if the 32-bit immediate is in the range [0,15]
-def imm32_0_15 : Operand<i32>, ImmLeaf<i32, [{
-  return ((uint32_t)Imm) < 16;
-}]> {
+// ImmLeaf inlines the C++ code for the predicate.
+def imm32_0_15 : Operand<i32>,
+                 ImmLeaf<i32, [{ return ((uint32_t)Imm) < 16;}]> {
   let ParserMatchClass = Imm0_15Operand;
 }
 
 def Imm0_31Operand : AsmImmRange<0, 31>;
 
 // imm0_31 predicate - True if the immediate is in the range [0,31]
-def imm0_31 : Operand<i64>, ImmLeaf<i64, [{
-  return ((uint64_t)Imm) < 32;
-}]> {
+// ImmLeaf inlines the C++ code for the predicate.
+def imm0_31 : Operand<i64>,
+              ImmLeaf<i64, [{return ((uint64_t)Imm) < 32; }]> {
   let ParserMatchClass = Imm0_31Operand;
 }
 
+// Specific Instances of BranchTarget and PCRelLabel
 def BranchTarget26Operand : BranchTarget<26>;
 
 def PCRelLabel19Operand   : PCRelLabel<19>;
 
 // Load/Store unsigned scaled offset operand
-
 def am_indexed64 : ComplexPattern<i64, 2, "SelectAddrModeIndexed64", []>;
 
-// Only 64-bit 8-bytes supported at the moment
+// Generator for scaled operands.
 class UImm12OffsetOperand<int Scale> : AsmOperandClass {
   let Name = "UImm12Offset" # Scale;
   let RenderMethod = "addUImm12OffsetOperands<" # Scale # ">";
@@ -62,6 +69,7 @@ class UImm12OffsetOperand<int Scale> : AsmOperandClass {
   let DiagnosticType = "InvalidMemoryIndexed" # Scale;
 }
 
+// Only 64-bit 8-bytes supported at the moment
 def UImm12OffsetScale8Operand : UImm12OffsetOperand<8>;
 
 class uimm12_scaled<int Scale> : Operand<i64> {
@@ -88,7 +96,6 @@ def am_ldrlit : Operand<iPTR> {
 //  second operand:
 //  {7-6} - shift type: 00 = lsl
 //  {5-0} - imm6: #0 or #12
-
 
 // Shifter operand for arithmetic shifted encodings.
 def ShifterOperand : AsmOperandClass {
@@ -219,8 +226,7 @@ def adrplabel : Operand<i64> {
 class InstSubst<string Asm, dag Result, bit EmitPriority = 0>
   : InstAlias<Asm, Result, EmitPriority>;
 
-class A64Inst<dag outs, dag ins, string asmstr, list<dag> pattern>
-    : Instruction {
+class A64Inst<dag outs, dag ins, string asmstr> : Instruction {
     field bits<32> Inst;
 
     // Mask of bits that cause an encoding to be UNPREDICTABLE.
@@ -237,7 +243,7 @@ class A64Inst<dag outs, dag ins, string asmstr, list<dag> pattern>
     dag OutOperandList = outs;
     dag InOperandList  = ins;
     let AsmString      = asmstr;
-    let Pattern        = pattern;
+    let Pattern        = [];
     let Size           = 4;
 }
 
@@ -245,7 +251,7 @@ class BaseAddSubImm<bit isSub, bit S, string opstr,
                     addsub_shifted_imm immtype>
     : A64Inst<(outs GPR64:$rd),
               (ins GPR64sp:$rn, immtype:$imm),
-              !strconcat(opstr, " $rd, $rn, $imm"), []> {
+              !strconcat(opstr, " $rd, $rn, $imm")> {
   bits<5>  rd;
   bits<5>  rn;
   bits<14> imm;
@@ -303,7 +309,7 @@ def logical_imm64_not : Operand<i64> {
 class LogicalImmGenBase <string opstr, bits<2> opc>
     : A64Inst<(outs GPR64sp:$rd),
               (ins  GPR64:$rn, logical_imm64:$imm),
-              !strconcat(opstr, " $rd, $rn, $imm"), []> {
+              !strconcat(opstr, " $rd, $rn, $imm")> {
   bits<5> Rd;
   bits<5> Rn;
   bits<13> imm;
@@ -339,7 +345,7 @@ multiclass LogicalImmS<string opstr, bits<2> opc, string alias> {
 class LogicalRegGenBase <string opstr, bits<2> opc, bits<1> N>
     : A64Inst<(outs GPR64:$rd),
               (ins GPR64:$rn, logical_shifted_reg64:$rm),
-              !strconcat(opstr, " $rd, $rn, $rm"), []> {
+              !strconcat(opstr, " $rd, $rn, $rm")> {
 
     // Operands in order to match the ins, outs. Names must be different
     // to use in-order mapping.
@@ -381,7 +387,7 @@ multiclass LogicalRegGenS<string opstr, bits<2> opc, bits<1> N> {
 class AddSubRegBase<string opstr, bits<1> op, bits<1> S>
       : A64Inst<(outs GPR64:$rd),
                 (ins GPR64:$rn, arith_shifted_reg64:$rm),
-                !strconcat(opstr, " $rd, $rn, $rm"), []> {
+                !strconcat(opstr, " $rd, $rn, $rm")> {
     // Operands in order to match the ins, outs. Names must be different
     // to use in-order mapping.
     bits<5>  dst;
@@ -419,9 +425,10 @@ multiclass AddSubRegGenS<string opstr, bits<1> op> {
 
 // A64 pseudo instructions format
 class Pseudo<dag outs, dag ins, list<dag> pattern, string asmstr = "">
-    : A64Inst<outs, ins, asmstr, pattern> {
+    : A64Inst<outs, ins, asmstr> {
     let isPseudo = 1;
     let isCodeGenOnly = 1;
+    let Pattern = pattern;
 }
 
 // Move immediate
@@ -480,7 +487,7 @@ def movimm64_shift : Operand<i32> {
 
 class MovImm<bits<2> opc, string opstr> :
   A64Inst<(outs GPR64:$rd), (ins movimm32_imm:$imm, movimm64_shift:$shift),
-          !strconcat(opstr, " $rd, $imm$shift"), []> {
+          !strconcat(opstr, " $rd, $imm$shift")> {
   bits<5> rd;
   bits<16> imm;
   bits<6> shift;
@@ -497,7 +504,7 @@ class MovImm<bits<2> opc, string opstr> :
 let mayLoad = 1, mayStore = 0, hasSideEffects = 0, AddedComplexity = 20 in
 class LoadLiteral<bits<2> opc, bit V, string opstr>
     : A64Inst<(outs GPR64:$rt), (ins am_ldrlit:$label),
-        !strconcat(opstr, "\t$rt, $label"), []> {
+        !strconcat(opstr, "\t$rt, $label")> {
   bits<5> rt;
   bits<19> label;
   let Inst{31-30} = opc;
@@ -510,7 +517,7 @@ class LoadLiteral<bits<2> opc, bit V, string opstr>
 
 class BaseLoadStoreUI<bit V, bits<2> opc, dag oops, dag iops,
                       string opstr>
-    : A64Inst<oops, iops, !strconcat(opstr, "\t$rt, [$rn, $imm]"), []> {
+    : A64Inst<oops, iops, !strconcat(opstr, "\t$rt, [$rn, $imm]")> {
   bits<5> rt;
   bits<5> rn;
   bits<12> imm;
@@ -555,8 +562,7 @@ multiclass StoreUI<bit V, bits<2> opc,
 
 class ADRI<bit op, string opstr, Operand labelop>
     : A64Inst<(outs GPR64:$xd), (ins labelop:$label),
-              !strconcat(opstr, "\t$xd, $label"),
-              []> {
+              !strconcat(opstr, "\t$xd, $label")> {
   bits<5>  xd;
   bits<21> label;
   let Inst{31}    = op;
@@ -591,7 +597,7 @@ def am_brcond : Operand<OtherVT> {
 }
 
 class BCond : A64Inst<(outs), (ins ccode:$cond, am_brcond:$target),
-                     "b.$cond\t$target",[]> {
+                     "b.$cond\t$target"> {
   let isBranch = 1;
   let isTerminator = 1;
   let Uses = [NZCV];
@@ -607,6 +613,7 @@ class BCond : A64Inst<(outs), (ins ccode:$cond, am_brcond:$target),
 //---
 // Unconditional branch (immediate) instructions.
 //---
+
 def am_b_target : Operand<OtherVT> {
   let EncoderMethod = "getBranchTargetOpValue";
   let PrintMethod = "printAlignedLabel";
@@ -622,7 +629,7 @@ def am_bl_target : Operand<i64> {
 }
 
 class BImm<bit op, dag ins, string opstr>
-    : A64Inst<(outs), ins, !strconcat(opstr, "\t$addr"),[]> {
+    : A64Inst<(outs), ins, !strconcat(opstr, "\t$addr")> {
   bits<26> addr;
   let Inst{31}    = op;
   let Inst{30-26} = 0b00101;
@@ -637,17 +644,6 @@ class CallImm<string opstr>
 class BranchImm<string opstr>
     : BImm<0b0, (ins am_b_target:$addr), opstr>;
 
-class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
-                         dag outs, dag ins, string asmstr, list<dag> pattern>
-    : A64Inst<outs, ins, asmstr, pattern> {
-    let Inst{31} = 0b1;
-    let Inst{30} = op0;
-    let Inst{28} = op1;
-    let Inst{27-25} = 0b101;
-    let Inst{24-21} = op2;
-    let Inst{15-10} = op3;
-}
-
 //---
 // Conditionally set flags
 //---
@@ -655,7 +651,7 @@ class DataProcessingReg <bits<1> op0, bits<1> op1, bits<4> op2, bits<6> op3,
 let mayLoad = 0, mayStore = 0, hasSideEffects = 0 in
 class BaseCondComparisonImm<bit op, string mnemonic, SDNode OpNode>
     : A64Inst<(outs), (ins GPR64:$Rn, imm0_31:$imm, imm32_0_15:$nzcv, ccode:$cond),
-         !strconcat(mnemonic, "\t$Rn, $imm, $nzcv, $cond"),[]> {
+         !strconcat(mnemonic, "\t$Rn, $imm, $nzcv, $cond")> {
   let Uses = [NZCV];
   let Defs = [NZCV];
 
@@ -678,7 +674,7 @@ class BaseCondComparisonImm<bit op, string mnemonic, SDNode OpNode>
 let mayLoad = 0, mayStore = 0, hasSideEffects = 0 in
 class BaseCondComparisonReg<bit op, string mnemonic, SDNode OpNode>
     : A64Inst<(outs), (ins GPR64:$Rn, GPR64:$Rm, imm32_0_15:$nzcv, ccode:$cond),
-         !strconcat(mnemonic, "\t$Rn, $Rm, $nzcv, $cond"), []> {
+         !strconcat(mnemonic, "\t$Rn, $Rm, $nzcv, $cond")> {
   let Uses = [NZCV];
   let Defs = [NZCV];
 
@@ -714,7 +710,7 @@ multiclass CondComparison<bit op, string mnemonic, SDNode OpNode> {
 //    0010 ret
 //    otherwise UNDEFINED
 class BaseBranchReg<bits<4> opc, dag outs, dag ins, string asmstr>
-    : A64Inst<outs, ins, asmstr , []> {
+    : A64Inst<outs, ins, asmstr> {
   let Inst{31-25} = 0b1101011;
   let Inst{24-21} = opc;
   let Inst{20-16} = 0b11111;
@@ -730,7 +726,7 @@ class BranchReg<bits<4> opc, string opstr>
 
 class CondSelect<bit op, bits<2> op2, string asm>
     : A64Inst<(outs GPR64:$Rd), (ins GPR64:$Rn, GPR64:$Rm, ccode:$cond),
-         !strconcat(asm, "\t$Rd, $Rn, $Rm, $cond"),[]> {
+         !strconcat(asm, "\t$Rd, $Rn, $Rm, $cond")> {
   let Uses = [NZCV];
 
   bits<5> Rd;
@@ -750,7 +746,7 @@ class CondSelect<bit op, bits<2> op2, string asm>
 
 class Shift<bits<2> shift_type, string asm>
     : A64Inst<(outs GPR64:$Rd), (ins GPR64:$Rn, GPR64:$Rm),
-              !strconcat(asm, "\t$Rd, $Rn, $Rm"),[]> {
+              !strconcat(asm, "\t$Rd, $Rn, $Rm")> {
   let Inst{31}    = 0b1;
   let Inst{11-10} = shift_type;
   bits<5> Rd;
@@ -764,51 +760,16 @@ class Shift<bits<2> shift_type, string asm>
   let Inst{4-0}   = Rd;
 }
 
-class DataProcessingReg3 <bits<2> op54, bits<3> op31, bits<1> o0,
-                          dag outs, dag ins, string asmstr,
-                          list<dag> pattern>
-    : A64Inst<outs, ins, asmstr, pattern> {
-    let hasSideEffects = 0;
-    let mayLoad = 0;
-    let mayStore = 0;
-    let Inst{31} = 0b1;
-    let Inst{30-29} = op54;
-    let Inst{28-24} = 0b11011;
-    let Inst{23-21} = op31;
-    let Inst{15} = o0;
-}
-
-class LoadStore <dag outs, dag ins, string asmstr, list<dag> pattern>
-    : A64Inst<outs, ins, asmstr, pattern> {
-    let Inst{27} = 0b1;
-    let Inst{25} = 0b0;
-}
-
-class Branch <dag outs, dag ins, string asmstr, list<dag> pattern>
-    : A64Inst<outs, ins, asmstr, pattern> {
-    let Inst{27-25} = 0b101;
-}
-
-class Hint <bits<4> CRm, bits<3> op2, dag outs, dag ins, string asmstr,
-            list<dag> pattern>
-    : A64Inst<outs, ins, asmstr, pattern> {
-    let Inst{31-29} = 0b110;
-    let Inst{28-26} = 0b101;
-    let Inst{25-12} = 0b01000000110010;
-    let Inst{11-8}  = CRm;
-    let Inst{7-5}   = op2;
-    let Inst{4-0}   = 0b11111;
-}
-
 class MultiplyAccSub <string opstr, bits<1> o0>
-    : DataProcessingReg3<0b00, 0b000, o0,
-                         (outs GPR64sp:$rd),
-                         (ins GPR64sp:$rm, GPR64sp:$ra, GPR64sp:$rn),
-                         !strconcat(opstr, " $rd, $rn, $rm, $ra"), []> {
+    : A64Inst<(outs GPR64sp:$rd),
+              (ins GPR64sp:$rm, GPR64sp:$ra, GPR64sp:$rn),
+               !strconcat(opstr, " $rd, $rn, $rm, $ra")> {
     bits<5> rm;
     bits<5> ra;
     bits<5> rn;
     bits<5> rd;
+    let Inst{31} = 0b1;
+    let Inst{30-21} = 0b0011011000;
     let Inst{20-16} = rm;
     let Inst{15} = o0;
     let Inst{14-10} = ra;
@@ -818,14 +779,27 @@ class MultiplyAccSub <string opstr, bits<1> o0>
 
 // Mul is an alias of MADD it may be possible to refactor to make this
 // an alias in tablegen.
-class Mulc : DataProcessingReg<0b0, 0b1, 0b1000, 0b011111,
-                               (outs GPR64sp:$rd),
-                               (ins GPR64sp:$rn, GPR64sp:$rm),
-                               "mul $rd, $rn, $rm", []> {
+class Mulc : A64Inst<(outs GPR64sp:$rd),
+                     (ins GPR64sp:$rn, GPR64sp:$rm),
+                     "mul $rd, $rn, $rm"> {
     bits<5> rm;
     bits<5> rn;
     bits<5> rd;
+
+    let Inst{31} = 0b1;
+    let Inst{30-21} = 0b0011011000;
     let Inst{20-16} = rm;
+    let Inst{15-10} = 0b011111;
     let Inst{9-5} = rn;
     let Inst{4-0} = rd;
+}
+
+class Hint <bits<4> CRm, bits<3> op2, dag outs, dag ins, string asmstr>
+    : A64Inst<outs, ins, asmstr> {
+    let Inst{31-29} = 0b110;
+    let Inst{28-26} = 0b101;
+    let Inst{25-12} = 0b01000000110010;
+    let Inst{11-8}  = CRm;
+    let Inst{7-5}   = op2;
+    let Inst{4-0}   = 0b11111;
 }

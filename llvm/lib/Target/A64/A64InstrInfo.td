@@ -92,7 +92,7 @@ def ADJCALLSTACKUP : Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
 // Hint Instruction
 // ---
 
-def NOP : Hint<0b0000, 0b000, (outs), (ins), "nop", []> {}
+def NOP : Hint<0b0000, 0b000, (outs), (ins), "nop"> {}
 
 // ---
 // Arm ARM Add/subtract (immediate)
