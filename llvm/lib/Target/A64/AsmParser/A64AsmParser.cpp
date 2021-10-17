@@ -261,11 +261,11 @@ public:
     // Validation was handled during parsing, so we just sanity check that
     // something didn't go haywire.
     if (!isImm())
-        return false;
+      return false;
 
     if (const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(Imm.Val)) {
       int64_t Val = CE->getValue();
-      int64_t Min = - (4096 * (1LL << (21 - 1)));
+      int64_t Min = -(4096 * (1LL << (21 - 1)));
       int64_t Max = 4096 * ((1LL << (21 - 1)) - 1);
       return (Val % 4096) == 0 && Val >= Min && Val <= Max;
     }
@@ -306,16 +306,15 @@ public:
     return (Val == 0 || Val == 16 || Val == 32 || Val == 48);
   }
 
-  bool
-  isMovWSymbol(ArrayRef<A64MCExpr::VariantKind> AllowedModifiers) const {
+  bool isMovWSymbol(ArrayRef<A64MCExpr::VariantKind> AllowedModifiers) const {
     if (!isImm())
       return false;
 
     A64MCExpr::VariantKind ELFRefKind;
     MCSymbolRefExpr::VariantKind DarwinRefKind;
     int64_t Addend;
-    if (!A64AsmParser::classifySymbolRef(getImm(), ELFRefKind,
-                                         DarwinRefKind, Addend)) {
+    if (!A64AsmParser::classifySymbolRef(getImm(), ELFRefKind, DarwinRefKind,
+                                         Addend)) {
       return false;
     }
     if (DarwinRefKind != MCSymbolRefExpr::VK_None)
@@ -401,8 +400,8 @@ public:
     A64MCExpr::VariantKind ELFRefKind;
     MCSymbolRefExpr::VariantKind DarwinRefKind;
     int64_t Addend;
-    if (A64AsmParser::classifySymbolRef(Expr, ELFRefKind,
-                                          DarwinRefKind, Addend)) {
+    if (A64AsmParser::classifySymbolRef(Expr, ELFRefKind, DarwinRefKind,
+                                        Addend)) {
       return ELFRefKind == A64MCExpr::VK_LO12;
     }
 
@@ -791,8 +790,7 @@ bool A64AsmParser::parseCondCode(OperandVector &Operands) {
     return TokError("invalid condition code");
   Parser.Lex(); // Eat identifier token.
 
-  Operands.push_back(
-      A64Operand::CreateCondCode(CC, S, getLoc(), getContext()));
+  Operands.push_back(A64Operand::CreateCondCode(CC, S, getLoc(), getContext()));
   return false;
 }
 
@@ -1244,8 +1242,7 @@ OperandMatchResultTy A64AsmParser::tryParseAdrLabel(OperandVector &Operands) {
 
 /// tryParseAdrpLabel - Parse and validate a source label for the ADRP
 /// instruction.
-OperandMatchResultTy
-A64AsmParser::tryParseAdrpLabel(OperandVector &Operands) {
+OperandMatchResultTy A64AsmParser::tryParseAdrpLabel(OperandVector &Operands) {
   MCAsmParser &Parser = getParser();
   SMLoc S = getLoc();
   const MCExpr *Expr = nullptr;
@@ -1265,8 +1262,7 @@ A64AsmParser::tryParseAdrpLabel(OperandVector &Operands) {
         ELFRefKind == A64MCExpr::VK_INVALID) {
       // No modifier was specified at all; this is the syntax for an ELF basic
       // ADRP relocation (unfortunately).
-      Expr =
-          A64MCExpr::create(Expr, A64MCExpr::VK_ABS_PAGE, getContext());
+      Expr = A64MCExpr::create(Expr, A64MCExpr::VK_ABS_PAGE, getContext());
     } else {
       Error(S, "modifiers not supported yet");
       return MatchOperand_ParseFail;
