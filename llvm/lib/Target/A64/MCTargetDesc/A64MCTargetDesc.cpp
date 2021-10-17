@@ -123,6 +123,7 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeA64TargetMC() {
 
   // Register the asm streamer.
   TargetRegistry::RegisterAsmTargetStreamer(*T, createA64AsmTargetStreamer);
+
   // Register the MCInstPrinter.
   TargetRegistry::RegisterMCInstPrinter(*T, createA64MCInstPrinter);
 

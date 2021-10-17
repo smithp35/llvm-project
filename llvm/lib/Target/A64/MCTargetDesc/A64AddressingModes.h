@@ -6,7 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file contains the A64 addressing mode implementation stuff.
+// This file contains the A64 addressing mode implementation, utility functions
+// for shifts, immediates etc.
 //
 //===----------------------------------------------------------------------===//
 
@@ -138,7 +139,7 @@ static inline unsigned getShifterImm(A64_AM::ShiftExtendType ST, unsigned Imm) {
 }
 
 static inline uint64_t ror(uint64_t elt, unsigned size) {
-  return ((elt & 1) << (size-1)) | (elt >> 1);
+  return ((elt & 1) << (size - 1)) | (elt >> 1);
 }
 
 /// processLogicalImmediate - Determine if an immediate value can be encoded
@@ -149,7 +150,7 @@ static inline bool processLogicalImmediate(uint64_t Imm, unsigned RegSize,
                                            uint64_t &Encoding) {
   if (Imm == 0ULL || Imm == ~0ULL ||
       (RegSize != 64 &&
-        (Imm >> RegSize != 0 || Imm == (~0ULL >> (64 - RegSize)))))
+       (Imm >> RegSize != 0 || Imm == (~0ULL >> (64 - RegSize)))))
     return false;
 
   // First, determine the element size.
@@ -192,11 +193,11 @@ static inline bool processLogicalImmediate(uint64_t Imm, unsigned RegSize,
 
   // If size has a 1 in the n'th bit, create a value that has zeroes in
   // bits [0, n] and ones above that.
-  uint64_t NImms = ~(Size-1) << 1;
+  uint64_t NImms = ~(Size - 1) << 1;
 
   // Or the CTO value into the low bits, which must be below the Nth bit
   // bit mentioned above.
-  NImms |= (CTO-1);
+  NImms |= (CTO - 1);
 
   // Extract the seventh bit and toggle it to create the N field.
   unsigned N = ((NImms >> 6) & 1) ^ 1;
@@ -272,7 +273,7 @@ static inline bool isValidDecodeLogicalImmediate(uint64_t val,
   return true;
 }
 
-}
+} // namespace A64_AM
 
-}
+} // namespace llvm
 #endif

@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 //
 // This file contains the declaration of the A64MCAsmInfo class.
+// The A64MCAsmInfo sets properties such as pointer size, what
+// The comment string is.
 //
 //===----------------------------------------------------------------------===//
 

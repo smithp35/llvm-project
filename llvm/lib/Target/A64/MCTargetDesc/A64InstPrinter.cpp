@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "A64InstPrinter.h"
-#include "Utils/A64BaseInfo.h"
 #include "MCTargetDesc/A64AddressingModes.h"
+#include "Utils/A64BaseInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
@@ -173,8 +173,7 @@ void A64InstPrinter::printAlignedLabel(const MCInst *MI, uint64_t Address,
 }
 
 void A64InstPrinter::printAdrpLabel(const MCInst *MI, uint64_t Address,
-                                    unsigned OpNum,
-                                    raw_ostream &O) {
+                                    unsigned OpNum, raw_ostream &O) {
   const MCOperand &Op = MI->getOperand(OpNum);
 
   // If the label has already been resolved to an immediate offset (say, when
