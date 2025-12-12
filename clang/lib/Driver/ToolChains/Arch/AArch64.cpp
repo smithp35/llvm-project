@@ -478,6 +478,7 @@ void aarch64::getAArch64TargetFeatures(const Driver &D,
 }
 
 /// Is the triple {aarch64.aarch64_be}-none-elf?
+/// Also support aarch64-none-pauthtest.
 bool aarch64::isAArch64BareMetal(const llvm::Triple &Triple) {
   if (Triple.getArch() != llvm::Triple::aarch64 &&
       Triple.getArch() != llvm::Triple::aarch64_be)
@@ -489,5 +490,6 @@ bool aarch64::isAArch64BareMetal(const llvm::Triple &Triple) {
   if (Triple.getOS() != llvm::Triple::UnknownOS)
     return false;
 
-  return Triple.getEnvironmentName() == "elf";
+  return Triple.getEnvironmentName() == "elf" ||
+         Triple.getEnvironment() == llvm::Triple::PAuthTest;
 }

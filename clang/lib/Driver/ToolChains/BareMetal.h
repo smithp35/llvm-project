@@ -75,6 +75,10 @@ public:
   void
   addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
                            llvm::opt::ArgStringList &CC1Args) const override;
+
+  std::string ComputeEffectiveClangTriple(
+      const llvm::opt::ArgList &Args,
+      types::ID InputType = types::TY_INVALID) const override;
   std::string computeSysRoot() const override;
   std::string getCompilerRTPath() const override;
   SanitizerMask getSupportedSanitizers() const override;

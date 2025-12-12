@@ -1610,8 +1610,10 @@ void RenderAArch64ABI(const llvm::Triple &Triple, const ArgList &Args,
   else if (Triple.isOSDarwin())
     ABIName = "darwinpcs";
   // TODO: we probably want to have some target hook here.
-  else if (Triple.isOSLinux() &&
-           Triple.getEnvironment() == llvm::Triple::PAuthTest)
+  else if ((Triple.isOSLinux() ||
+           (Triple.getVendor() == llvm::Triple::UnknownVendor &&
+            Triple.getOS() == llvm::Triple::UnknownOS)) &&
+               Triple.getEnvironment() == llvm::Triple::PAuthTest)
     ABIName = "pauthtest";
   else
     ABIName = "aapcs";
@@ -1695,7 +1697,9 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
   AddUnalignedAccessWarning(CmdArgs);
 
   if (Triple.isOSDarwin() ||
-      (Triple.isOSLinux() &&
+      ((Triple.isOSLinux() ||
+       (Triple.getVendor() == llvm::Triple::UnknownVendor &&
+        Triple.getOS() == llvm::Triple::UnknownOS)) &&
        Triple.getEnvironment() == llvm::Triple::PAuthTest)) {
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_intrinsics,
                       options::OPT_fno_ptrauth_intrinsics);
@@ -1720,8 +1724,10 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_indirect_gotos,
                       options::OPT_fno_ptrauth_indirect_gotos);
   }
-  if (Triple.isOSLinux() &&
-      Triple.getEnvironment() == llvm::Triple::PAuthTest) {
+  if ((Triple.isOSLinux() ||
+      (Triple.getVendor() == llvm::Triple::UnknownVendor &&
+       Triple.getOS() == llvm::Triple::UnknownOS)) &&
+          Triple.getEnvironment() == llvm::Triple::PAuthTest) {
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_init_fini,
                       options::OPT_fno_ptrauth_init_fini);
     Args.addOptInFlag(
