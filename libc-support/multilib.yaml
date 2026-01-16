@@ -1,0 +1,949 @@
+MultilibVersion: '1.0'
+
+Groups:
+
+- Name: stdlibs
+  Type: Exclusive
+
+Variants:
+
+- Dir: aarch64-none-elf/aarch64a-8.3-branch-protection
+  Flags:
+  - --target=aarch64-unknown-none-elf
+  - -mbranch-protection=pac-ret+bti
+  - -march=armv8.3-a
+  Group: stdlibs
+
+- Dir: aarch64-none-elf/aarch64a-8.3-pauthtest
+  Flags:
+  - --target=aarch64-unknown-none-pauthtest
+  - -march=armv8.3-a
+  Group: stdlibs
+
+
+Mappings:
+
+# -mbranch-protection options
+- Match: -mbranch-protection=(standard|pac-ret(\+leaf)?(\+bti)?|bti(\+pac-ret(\+leaf)?)?)
+  Flags:
+  - -mbranch-protection=pac-ret+bti
+
+# Expand -march=...+[no]feature... into individual options we can match
+# on. We use 'armvX' to represent a feature applied to any architecture, so
+# that these don't need to be repeated for every version. Libraries which
+# require a particular architecture version or profile should also match on the
+# original option to check that.
+- Match: -march=armv.*\+aes($|\+.*)
+  Flags:
+  - -march=armvX+aes
+- Match: -march=armv.*\+noaes($|\+.*)
+  Flags:
+  - -march=armvX+noaes
+- Match: -march=armv.*\+bf16($|\+.*)
+  Flags:
+  - -march=armvX+bf16
+- Match: -march=armv.*\+nobf16($|\+.*)
+  Flags:
+  - -march=armvX+nobf16
+- Match: -march=armv.*\+brbe($|\+.*)
+  Flags:
+  - -march=armvX+brbe
+- Match: -march=armv.*\+nobrbe($|\+.*)
+  Flags:
+  - -march=armvX+nobrbe
+- Match: -march=armv.*\+bti($|\+.*)
+  Flags:
+  - -march=armvX+bti
+- Match: -march=armv.*\+nobti($|\+.*)
+  Flags:
+  - -march=armvX+nobti
+- Match: -march=armv.*\+btie($|\+.*)
+  Flags:
+  - -march=armvX+btie
+- Match: -march=armv.*\+nobtie($|\+.*)
+  Flags:
+  - -march=armvX+nobtie
+- Match: -march=armv.*\+cmh($|\+.*)
+  Flags:
+  - -march=armvX+cmh
+- Match: -march=armv.*\+nocmh($|\+.*)
+  Flags:
+  - -march=armvX+nocmh
+- Match: -march=armv.*\+cmpbr($|\+.*)
+  Flags:
+  - -march=armvX+cmpbr
+- Match: -march=armv.*\+nocmpbr($|\+.*)
+  Flags:
+  - -march=armvX+nocmpbr
+- Match: -march=armv.*\+fcma($|\+.*)
+  Flags:
+  - -march=armvX+fcma
+- Match: -march=armv.*\+nofcma($|\+.*)
+  Flags:
+  - -march=armvX+nofcma
+- Match: -march=armv.*\+cpa($|\+.*)
+  Flags:
+  - -march=armvX+cpa
+- Match: -march=armv.*\+nocpa($|\+.*)
+  Flags:
+  - -march=armvX+nocpa
+- Match: -march=armv.*\+crc($|\+.*)
+  Flags:
+  - -march=armvX+crc
+- Match: -march=armv.*\+nocrc($|\+.*)
+  Flags:
+  - -march=armvX+nocrc
+- Match: -march=armv.*\+crypto($|\+.*)
+  Flags:
+  - -march=armvX+crypto
+- Match: -march=armv.*\+nocrypto($|\+.*)
+  Flags:
+  - -march=armvX+nocrypto
+- Match: -march=armv.*\+cssc($|\+.*)
+  Flags:
+  - -march=armvX+cssc
+- Match: -march=armv.*\+nocssc($|\+.*)
+  Flags:
+  - -march=armvX+nocssc
+- Match: -march=armv.*\+d128($|\+.*)
+  Flags:
+  - -march=armvX+d128
+- Match: -march=armv.*\+nod128($|\+.*)
+  Flags:
+  - -march=armvX+nod128
+- Match: -march=armv.*\+dit($|\+.*)
+  Flags:
+  - -march=armvX+dit
+- Match: -march=armv.*\+nodit($|\+.*)
+  Flags:
+  - -march=armvX+nodit
+- Match: -march=armv.*\+dotprod($|\+.*)
+  Flags:
+  - -march=armvX+dotprod
+- Match: -march=armv.*\+nodotprod($|\+.*)
+  Flags:
+  - -march=armvX+nodotprod
+- Match: -march=armv.*\+f16f32dot($|\+.*)
+  Flags:
+  - -march=armvX+f16f32dot
+- Match: -march=armv.*\+nof16f32dot($|\+.*)
+  Flags:
+  - -march=armvX+nof16f32dot
+- Match: -march=armv.*\+f16f32mm($|\+.*)
+  Flags:
+  - -march=armvX+f16f32mm
+- Match: -march=armv.*\+nof16f32mm($|\+.*)
+  Flags:
+  - -march=armvX+nof16f32mm
+- Match: -march=armv.*\+f16mm($|\+.*)
+  Flags:
+  - -march=armvX+f16mm
+- Match: -march=armv.*\+nof16mm($|\+.*)
+  Flags:
+  - -march=armvX+nof16mm
+- Match: -march=armv.*\+f32mm($|\+.*)
+  Flags:
+  - -march=armvX+f32mm
+- Match: -march=armv.*\+nof32mm($|\+.*)
+  Flags:
+  - -march=armvX+nof32mm
+- Match: -march=armv.*\+f64mm($|\+.*)
+  Flags:
+  - -march=armvX+f64mm
+- Match: -march=armv.*\+nof64mm($|\+.*)
+  Flags:
+  - -march=armvX+nof64mm
+- Match: -march=armv.*\+f8f16mm($|\+.*)
+  Flags:
+  - -march=armvX+f8f16mm
+- Match: -march=armv.*\+nof8f16mm($|\+.*)
+  Flags:
+  - -march=armvX+nof8f16mm
+- Match: -march=armv.*\+f8f32mm($|\+.*)
+  Flags:
+  - -march=armvX+f8f32mm
+- Match: -march=armv.*\+nof8f32mm($|\+.*)
+  Flags:
+  - -march=armvX+nof8f32mm
+- Match: -march=armv.*\+faminmax($|\+.*)
+  Flags:
+  - -march=armvX+faminmax
+- Match: -march=armv.*\+nofaminmax($|\+.*)
+  Flags:
+  - -march=armvX+nofaminmax
+- Match: -march=armv.*\+flagm($|\+.*)
+  Flags:
+  - -march=armvX+flagm
+- Match: -march=armv.*\+noflagm($|\+.*)
+  Flags:
+  - -march=armvX+noflagm
+- Match: -march=armv.*\+fp($|\+.*)
+  Flags:
+  - -march=armvX+fp
+- Match: -march=armv.*\+nofp($|\+.*)
+  Flags:
+  - -march=armvX+nofp
+- Match: -march=armv.*\+fp16fml($|\+.*)
+  Flags:
+  - -march=armvX+fp16fml
+- Match: -march=armv.*\+nofp16fml($|\+.*)
+  Flags:
+  - -march=armvX+nofp16fml
+- Match: -march=armv.*\+fp8($|\+.*)
+  Flags:
+  - -march=armvX+fp8
+- Match: -march=armv.*\+nofp8($|\+.*)
+  Flags:
+  - -march=armvX+nofp8
+- Match: -march=armv.*\+fp8dot2($|\+.*)
+  Flags:
+  - -march=armvX+fp8dot2
+- Match: -march=armv.*\+nofp8dot2($|\+.*)
+  Flags:
+  - -march=armvX+nofp8dot2
+- Match: -march=armv.*\+fp8dot4($|\+.*)
+  Flags:
+  - -march=armvX+fp8dot4
+- Match: -march=armv.*\+nofp8dot4($|\+.*)
+  Flags:
+  - -march=armvX+nofp8dot4
+- Match: -march=armv.*\+fp8fma($|\+.*)
+  Flags:
+  - -march=armvX+fp8fma
+- Match: -march=armv.*\+nofp8fma($|\+.*)
+  Flags:
+  - -march=armvX+nofp8fma
+- Match: -march=armv.*\+fprcvt($|\+.*)
+  Flags:
+  - -march=armvX+fprcvt
+- Match: -march=armv.*\+nofprcvt($|\+.*)
+  Flags:
+  - -march=armvX+nofprcvt
+- Match: -march=armv.*\+fp16($|\+.*)
+  Flags:
+  - -march=armvX+fp16
+- Match: -march=armv.*\+nofp16($|\+.*)
+  Flags:
+  - -march=armvX+nofp16
+- Match: -march=armv.*\+gcie($|\+.*)
+  Flags:
+  - -march=armvX+gcie
+- Match: -march=armv.*\+nogcie($|\+.*)
+  Flags:
+  - -march=armvX+nogcie
+- Match: -march=armv.*\+gcs($|\+.*)
+  Flags:
+  - -march=armvX+gcs
+- Match: -march=armv.*\+nogcs($|\+.*)
+  Flags:
+  - -march=armvX+nogcs
+- Match: -march=armv.*\+hbc($|\+.*)
+  Flags:
+  - -march=armvX+hbc
+- Match: -march=armv.*\+nohbc($|\+.*)
+  Flags:
+  - -march=armvX+nohbc
+- Match: -march=armv.*\+i8mm($|\+.*)
+  Flags:
+  - -march=armvX+i8mm
+- Match: -march=armv.*\+noi8mm($|\+.*)
+  Flags:
+  - -march=armvX+noi8mm
+- Match: -march=armv.*\+ite($|\+.*)
+  Flags:
+  - -march=armvX+ite
+- Match: -march=armv.*\+noite($|\+.*)
+  Flags:
+  - -march=armvX+noite
+- Match: -march=armv.*\+jscvt($|\+.*)
+  Flags:
+  - -march=armvX+jscvt
+- Match: -march=armv.*\+nojscvt($|\+.*)
+  Flags:
+  - -march=armvX+nojscvt
+- Match: -march=armv.*\+ls64($|\+.*)
+  Flags:
+  - -march=armvX+ls64
+- Match: -march=armv.*\+nols64($|\+.*)
+  Flags:
+  - -march=armvX+nols64
+- Match: -march=armv.*\+lscp($|\+.*)
+  Flags:
+  - -march=armvX+lscp
+- Match: -march=armv.*\+nolscp($|\+.*)
+  Flags:
+  - -march=armvX+nolscp
+- Match: -march=armv.*\+lse($|\+.*)
+  Flags:
+  - -march=armvX+lse
+- Match: -march=armv.*\+nolse($|\+.*)
+  Flags:
+  - -march=armvX+nolse
+- Match: -march=armv.*\+lse128($|\+.*)
+  Flags:
+  - -march=armvX+lse128
+- Match: -march=armv.*\+nolse128($|\+.*)
+  Flags:
+  - -march=armvX+nolse128
+- Match: -march=armv.*\+lsfe($|\+.*)
+  Flags:
+  - -march=armvX+lsfe
+- Match: -march=armv.*\+nolsfe($|\+.*)
+  Flags:
+  - -march=armvX+nolsfe
+- Match: -march=armv.*\+lsui($|\+.*)
+  Flags:
+  - -march=armvX+lsui
+- Match: -march=armv.*\+nolsui($|\+.*)
+  Flags:
+  - -march=armvX+nolsui
+- Match: -march=armv.*\+lut($|\+.*)
+  Flags:
+  - -march=armvX+lut
+- Match: -march=armv.*\+nolut($|\+.*)
+  Flags:
+  - -march=armvX+nolut
+- Match: -march=armv.*\+mops($|\+.*)
+  Flags:
+  - -march=armvX+mops
+- Match: -march=armv.*\+nomops($|\+.*)
+  Flags:
+  - -march=armvX+nomops
+- Match: -march=armv.*\+mops-go($|\+.*)
+  Flags:
+  - -march=armvX+mops-go
+- Match: -march=armv.*\+nomops-go($|\+.*)
+  Flags:
+  - -march=armvX+nomops-go
+- Match: -march=armv.*\+mpamv2($|\+.*)
+  Flags:
+  - -march=armvX+mpamv2
+- Match: -march=armv.*\+nompamv2($|\+.*)
+  Flags:
+  - -march=armvX+nompamv2
+- Match: -march=armv.*\+memtag($|\+.*)
+  Flags:
+  - -march=armvX+memtag
+- Match: -march=armv.*\+nomemtag($|\+.*)
+  Flags:
+  - -march=armvX+nomemtag
+- Match: -march=armv.*\+mtetc($|\+.*)
+  Flags:
+  - -march=armvX+mtetc
+- Match: -march=armv.*\+nomtetc($|\+.*)
+  Flags:
+  - -march=armvX+nomtetc
+- Match: -march=armv.*\+simd($|\+.*)
+  Flags:
+  - -march=armvX+simd
+- Match: -march=armv.*\+nosimd($|\+.*)
+  Flags:
+  - -march=armvX+nosimd
+- Match: -march=armv.*\+occmo($|\+.*)
+  Flags:
+  - -march=armvX+occmo
+- Match: -march=armv.*\+nooccmo($|\+.*)
+  Flags:
+  - -march=armvX+nooccmo
+- Match: -march=armv.*\+pauth($|\+.*)
+  Flags:
+  - -march=armvX+pauth
+- Match: -march=armv.*\+nopauth($|\+.*)
+  Flags:
+  - -march=armvX+nopauth
+- Match: -march=armv.*\+pauth-lr($|\+.*)
+  Flags:
+  - -march=armvX+pauth-lr
+- Match: -march=armv.*\+nopauth-lr($|\+.*)
+  Flags:
+  - -march=armvX+nopauth-lr
+- Match: -march=armv.*\+pcdphint($|\+.*)
+  Flags:
+  - -march=armvX+pcdphint
+- Match: -march=armv.*\+nopcdphint($|\+.*)
+  Flags:
+  - -march=armvX+nopcdphint
+- Match: -march=armv.*\+pmuv3($|\+.*)
+  Flags:
+  - -march=armvX+pmuv3
+- Match: -march=armv.*\+nopmuv3($|\+.*)
+  Flags:
+  - -march=armvX+nopmuv3
+- Match: -march=armv.*\+poe2($|\+.*)
+  Flags:
+  - -march=armvX+poe2
+- Match: -march=armv.*\+nopoe2($|\+.*)
+  Flags:
+  - -march=armvX+nopoe2
+- Match: -march=armv.*\+pops($|\+.*)
+  Flags:
+  - -march=armvX+pops
+- Match: -march=armv.*\+nopops($|\+.*)
+  Flags:
+  - -march=armvX+nopops
+- Match: -march=armv.*\+predres($|\+.*)
+  Flags:
+  - -march=armvX+predres
+- Match: -march=armv.*\+nopredres($|\+.*)
+  Flags:
+  - -march=armvX+nopredres
+- Match: -march=armv.*\+rng($|\+.*)
+  Flags:
+  - -march=armvX+rng
+- Match: -march=armv.*\+norng($|\+.*)
+  Flags:
+  - -march=armvX+norng
+- Match: -march=armv.*\+ras($|\+.*)
+  Flags:
+  - -march=armvX+ras
+- Match: -march=armv.*\+noras($|\+.*)
+  Flags:
+  - -march=armvX+noras
+- Match: -march=armv.*\+rasv2($|\+.*)
+  Flags:
+  - -march=armvX+rasv2
+- Match: -march=armv.*\+norasv2($|\+.*)
+  Flags:
+  - -march=armvX+norasv2
+- Match: -march=armv.*\+rcpc($|\+.*)
+  Flags:
+  - -march=armvX+rcpc
+- Match: -march=armv.*\+norcpc($|\+.*)
+  Flags:
+  - -march=armvX+norcpc
+- Match: -march=armv.*\+rcpc3($|\+.*)
+  Flags:
+  - -march=armvX+rcpc3
+- Match: -march=armv.*\+norcpc3($|\+.*)
+  Flags:
+  - -march=armvX+norcpc3
+- Match: -march=armv.*\+rdm($|\+.*)
+  Flags:
+  - -march=armvX+rdm
+- Match: -march=armv.*\+nordm($|\+.*)
+  Flags:
+  - -march=armvX+nordm
+- Match: -march=armv.*\+sb($|\+.*)
+  Flags:
+  - -march=armvX+sb
+- Match: -march=armv.*\+nosb($|\+.*)
+  Flags:
+  - -march=armvX+nosb
+- Match: -march=armv.*\+sha2($|\+.*)
+  Flags:
+  - -march=armvX+sha2
+- Match: -march=armv.*\+nosha2($|\+.*)
+  Flags:
+  - -march=armvX+nosha2
+- Match: -march=armv.*\+sha3($|\+.*)
+  Flags:
+  - -march=armvX+sha3
+- Match: -march=armv.*\+nosha3($|\+.*)
+  Flags:
+  - -march=armvX+nosha3
+- Match: -march=armv.*\+sm4($|\+.*)
+  Flags:
+  - -march=armvX+sm4
+- Match: -march=armv.*\+nosm4($|\+.*)
+  Flags:
+  - -march=armvX+nosm4
+- Match: -march=armv.*\+sme($|\+.*)
+  Flags:
+  - -march=armvX+sme
+- Match: -march=armv.*\+nosme($|\+.*)
+  Flags:
+  - -march=armvX+nosme
+- Match: -march=armv.*\+sme-b16b16($|\+.*)
+  Flags:
+  - -march=armvX+sme-b16b16
+- Match: -march=armv.*\+nosme-b16b16($|\+.*)
+  Flags:
+  - -march=armvX+nosme-b16b16
+- Match: -march=armv.*\+sme-f16f16($|\+.*)
+  Flags:
+  - -march=armvX+sme-f16f16
+- Match: -march=armv.*\+nosme-f16f16($|\+.*)
+  Flags:
+  - -march=armvX+nosme-f16f16
+- Match: -march=armv.*\+sme-f64f64($|\+.*)
+  Flags:
+  - -march=armvX+sme-f64f64
+- Match: -march=armv.*\+nosme-f64f64($|\+.*)
+  Flags:
+  - -march=armvX+nosme-f64f64
+- Match: -march=armv.*\+sme-f8f16($|\+.*)
+  Flags:
+  - -march=armvX+sme-f8f16
+- Match: -march=armv.*\+nosme-f8f16($|\+.*)
+  Flags:
+  - -march=armvX+nosme-f8f16
+- Match: -march=armv.*\+sme-f8f32($|\+.*)
+  Flags:
+  - -march=armvX+sme-f8f32
+- Match: -march=armv.*\+nosme-f8f32($|\+.*)
+  Flags:
+  - -march=armvX+nosme-f8f32
+- Match: -march=armv.*\+sme-fa64($|\+.*)
+  Flags:
+  - -march=armvX+sme-fa64
+- Match: -march=armv.*\+nosme-fa64($|\+.*)
+  Flags:
+  - -march=armvX+nosme-fa64
+- Match: -march=armv.*\+sme-i16i64($|\+.*)
+  Flags:
+  - -march=armvX+sme-i16i64
+- Match: -march=armv.*\+nosme-i16i64($|\+.*)
+  Flags:
+  - -march=armvX+nosme-i16i64
+- Match: -march=armv.*\+sme-lutv2($|\+.*)
+  Flags:
+  - -march=armvX+sme-lutv2
+- Match: -march=armv.*\+nosme-lutv2($|\+.*)
+  Flags:
+  - -march=armvX+nosme-lutv2
+- Match: -march=armv.*\+sme-mop4($|\+.*)
+  Flags:
+  - -march=armvX+sme-mop4
+- Match: -march=armv.*\+nosme-mop4($|\+.*)
+  Flags:
+  - -march=armvX+nosme-mop4
+- Match: -march=armv.*\+sme-tmop($|\+.*)
+  Flags:
+  - -march=armvX+sme-tmop
+- Match: -march=armv.*\+nosme-tmop($|\+.*)
+  Flags:
+  - -march=armvX+nosme-tmop
+- Match: -march=armv.*\+sme2($|\+.*)
+  Flags:
+  - -march=armvX+sme2
+- Match: -march=armv.*\+nosme2($|\+.*)
+  Flags:
+  - -march=armvX+nosme2
+- Match: -march=armv.*\+sme2p1($|\+.*)
+  Flags:
+  - -march=armvX+sme2p1
+- Match: -march=armv.*\+nosme2p1($|\+.*)
+  Flags:
+  - -march=armvX+nosme2p1
+- Match: -march=armv.*\+sme2p2($|\+.*)
+  Flags:
+  - -march=armvX+sme2p2
+- Match: -march=armv.*\+nosme2p2($|\+.*)
+  Flags:
+  - -march=armvX+nosme2p2
+- Match: -march=armv.*\+sme2p3($|\+.*)
+  Flags:
+  - -march=armvX+sme2p3
+- Match: -march=armv.*\+nosme2p3($|\+.*)
+  Flags:
+  - -march=armvX+nosme2p3
+- Match: -march=armv.*\+profile($|\+.*)
+  Flags:
+  - -march=armvX+profile
+- Match: -march=armv.*\+noprofile($|\+.*)
+  Flags:
+  - -march=armvX+noprofile
+- Match: -march=armv.*\+predres2($|\+.*)
+  Flags:
+  - -march=armvX+predres2
+- Match: -march=armv.*\+nopredres2($|\+.*)
+  Flags:
+  - -march=armvX+nopredres2
+- Match: -march=armv.*\+ssbs($|\+.*)
+  Flags:
+  - -march=armvX+ssbs
+- Match: -march=armv.*\+nossbs($|\+.*)
+  Flags:
+  - -march=armvX+nossbs
+- Match: -march=armv.*\+ssve-aes($|\+.*)
+  Flags:
+  - -march=armvX+ssve-aes
+- Match: -march=armv.*\+nossve-aes($|\+.*)
+  Flags:
+  - -march=armvX+nossve-aes
+- Match: -march=armv.*\+ssve-bitperm($|\+.*)
+  Flags:
+  - -march=armvX+ssve-bitperm
+- Match: -march=armv.*\+nossve-bitperm($|\+.*)
+  Flags:
+  - -march=armvX+nossve-bitperm
+- Match: -march=armv.*\+ssve-fexpa($|\+.*)
+  Flags:
+  - -march=armvX+ssve-fexpa
+- Match: -march=armv.*\+nossve-fexpa($|\+.*)
+  Flags:
+  - -march=armvX+nossve-fexpa
+- Match: -march=armv.*\+ssve-fp8dot2($|\+.*)
+  Flags:
+  - -march=armvX+ssve-fp8dot2
+- Match: -march=armv.*\+nossve-fp8dot2($|\+.*)
+  Flags:
+  - -march=armvX+nossve-fp8dot2
+- Match: -march=armv.*\+ssve-fp8dot4($|\+.*)
+  Flags:
+  - -march=armvX+ssve-fp8dot4
+- Match: -march=armv.*\+nossve-fp8dot4($|\+.*)
+  Flags:
+  - -march=armvX+nossve-fp8dot4
+- Match: -march=armv.*\+ssve-fp8fma($|\+.*)
+  Flags:
+  - -march=armvX+ssve-fp8fma
+- Match: -march=armv.*\+nossve-fp8fma($|\+.*)
+  Flags:
+  - -march=armvX+nossve-fp8fma
+- Match: -march=armv.*\+sve($|\+.*)
+  Flags:
+  - -march=armvX+sve
+- Match: -march=armv.*\+nosve($|\+.*)
+  Flags:
+  - -march=armvX+nosve
+- Match: -march=armv.*\+sve-aes($|\+.*)
+  Flags:
+  - -march=armvX+sve-aes
+- Match: -march=armv.*\+nosve-aes($|\+.*)
+  Flags:
+  - -march=armvX+nosve-aes
+- Match: -march=armv.*\+sve-aes2($|\+.*)
+  Flags:
+  - -march=armvX+sve-aes2
+- Match: -march=armv.*\+nosve-aes2($|\+.*)
+  Flags:
+  - -march=armvX+nosve-aes2
+- Match: -march=armv.*\+sve-b16b16($|\+.*)
+  Flags:
+  - -march=armvX+sve-b16b16
+- Match: -march=armv.*\+nosve-b16b16($|\+.*)
+  Flags:
+  - -march=armvX+nosve-b16b16
+- Match: -march=armv.*\+sve-b16mm($|\+.*)
+  Flags:
+  - -march=armvX+sve-b16mm
+- Match: -march=armv.*\+nosve-b16mm($|\+.*)
+  Flags:
+  - -march=armvX+nosve-b16mm
+- Match: -march=armv.*\+sve-bfscale($|\+.*)
+  Flags:
+  - -march=armvX+sve-bfscale
+- Match: -march=armv.*\+nosve-bfscale($|\+.*)
+  Flags:
+  - -march=armvX+nosve-bfscale
+- Match: -march=armv.*\+sve-bitperm($|\+.*)
+  Flags:
+  - -march=armvX+sve-bitperm
+- Match: -march=armv.*\+nosve-bitperm($|\+.*)
+  Flags:
+  - -march=armvX+nosve-bitperm
+- Match: -march=armv.*\+sve-f16f32mm($|\+.*)
+  Flags:
+  - -march=armvX+sve-f16f32mm
+- Match: -march=armv.*\+nosve-f16f32mm($|\+.*)
+  Flags:
+  - -march=armvX+nosve-f16f32mm
+- Match: -march=armv.*\+sve-sha3($|\+.*)
+  Flags:
+  - -march=armvX+sve-sha3
+- Match: -march=armv.*\+nosve-sha3($|\+.*)
+  Flags:
+  - -march=armvX+nosve-sha3
+- Match: -march=armv.*\+sve-sm4($|\+.*)
+  Flags:
+  - -march=armvX+sve-sm4
+- Match: -march=armv.*\+nosve-sm4($|\+.*)
+  Flags:
+  - -march=armvX+nosve-sm4
+- Match: -march=armv.*\+sve2($|\+.*)
+  Flags:
+  - -march=armvX+sve2
+- Match: -march=armv.*\+nosve2($|\+.*)
+  Flags:
+  - -march=armvX+nosve2
+- Match: -march=armv.*\+sve2p1($|\+.*)
+  Flags:
+  - -march=armvX+sve2p1
+- Match: -march=armv.*\+nosve2p1($|\+.*)
+  Flags:
+  - -march=armvX+nosve2p1
+- Match: -march=armv.*\+sve2p2($|\+.*)
+  Flags:
+  - -march=armvX+sve2p2
+- Match: -march=armv.*\+nosve2p2($|\+.*)
+  Flags:
+  - -march=armvX+nosve2p2
+- Match: -march=armv.*\+sve2p3($|\+.*)
+  Flags:
+  - -march=armvX+sve2p3
+- Match: -march=armv.*\+nosve2p3($|\+.*)
+  Flags:
+  - -march=armvX+nosve2p3
+- Match: -march=armv.*\+tev($|\+.*)
+  Flags:
+  - -march=armvX+tev
+- Match: -march=armv.*\+notev($|\+.*)
+  Flags:
+  - -march=armvX+notev
+- Match: -march=armv.*\+the($|\+.*)
+  Flags:
+  - -march=armvX+the
+- Match: -march=armv.*\+nothe($|\+.*)
+  Flags:
+  - -march=armvX+nothe
+- Match: -march=armv.*\+tlbid($|\+.*)
+  Flags:
+  - -march=armvX+tlbid
+- Match: -march=armv.*\+notlbid($|\+.*)
+  Flags:
+  - -march=armvX+notlbid
+- Match: -march=armv.*\+tlbiw($|\+.*)
+  Flags:
+  - -march=armvX+tlbiw
+- Match: -march=armv.*\+notlbiw($|\+.*)
+  Flags:
+  - -march=armvX+notlbiw
+- Match: -march=armv.*\+wfxt($|\+.*)
+  Flags:
+  - -march=armvX+wfxt
+- Match: -march=armv.*\+nowfxt($|\+.*)
+  Flags:
+  - -march=armvX+nowfxt
+- Match: -march=armv.*\+dsp($|\+.*)
+  Flags:
+  - -march=armvX+dsp
+- Match: -march=armv.*\+nodsp($|\+.*)
+  Flags:
+  - -march=armvX+nodsp
+- Match: -march=armv.*\+mve($|\+.*)
+  Flags:
+  - -march=armvX+mve
+- Match: -march=armv.*\+nomve($|\+.*)
+  Flags:
+  - -march=armvX+nomve
+- Match: -march=armv.*\+mve.fp($|\+.*)
+  Flags:
+  - -march=armvX+mve.fp
+- Match: -march=armv.*\+nomve.fp($|\+.*)
+  Flags:
+  - -march=armvX+nomve.fp
+- Match: -march=armv.*\+lob($|\+.*)
+  Flags:
+  - -march=armvX+lob
+- Match: -march=armv.*\+nolob($|\+.*)
+  Flags:
+  - -march=armvX+nolob
+- Match: -march=armv.*\+cdecp0($|\+.*)
+  Flags:
+  - -march=armvX+cdecp0
+- Match: -march=armv.*\+nocdecp0($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp0
+- Match: -march=armv.*\+cdecp1($|\+.*)
+  Flags:
+  - -march=armvX+cdecp1
+- Match: -march=armv.*\+nocdecp1($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp1
+- Match: -march=armv.*\+cdecp2($|\+.*)
+  Flags:
+  - -march=armvX+cdecp2
+- Match: -march=armv.*\+nocdecp2($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp2
+- Match: -march=armv.*\+cdecp3($|\+.*)
+  Flags:
+  - -march=armvX+cdecp3
+- Match: -march=armv.*\+nocdecp3($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp3
+- Match: -march=armv.*\+cdecp4($|\+.*)
+  Flags:
+  - -march=armvX+cdecp4
+- Match: -march=armv.*\+nocdecp4($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp4
+- Match: -march=armv.*\+cdecp5($|\+.*)
+  Flags:
+  - -march=armvX+cdecp5
+- Match: -march=armv.*\+nocdecp5($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp5
+- Match: -march=armv.*\+cdecp6($|\+.*)
+  Flags:
+  - -march=armvX+cdecp6
+- Match: -march=armv.*\+nocdecp6($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp6
+- Match: -march=armv.*\+cdecp7($|\+.*)
+  Flags:
+  - -march=armvX+cdecp7
+- Match: -march=armv.*\+nocdecp7($|\+.*)
+  Flags:
+  - -march=armvX+nocdecp7
+- Match: -march=armv.*\+pacbti($|\+.*)
+  Flags:
+  - -march=armvX+pacbti
+- Match: -march=armv.*\+nopacbti($|\+.*)
+  Flags:
+  - -march=armvX+nopacbti
+
+- Match: -march=armv8-a.*
+  Flags:
+  - -march=armv8-a
+- Match: -march=armv8.1-a.*
+  Flags:
+  - -march=armv8.1-a
+  - -march=armv8-a
+- Match: -march=armv8.2-a.*
+  Flags:
+  - -march=armv8.2-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+- Match: -march=armv8.3-a.*
+  Flags:
+  - -march=armv8.3-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+- Match: -march=armv8.4-a.*
+  Flags:
+  - -march=armv8.4-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+- Match: -march=armv8.5-a.*
+  Flags:
+  - -march=armv8.5-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+- Match: -march=armv8.6-a.*
+  Flags:
+  - -march=armv8.6-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+- Match: -march=armv8.7-a.*
+  Flags:
+  - -march=armv8.7-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+- Match: -march=armv8.8-a.*
+  Flags:
+  - -march=armv8.8-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+  - -march=armv8.7-a
+- Match: -march=armv8.9-a.*
+  Flags:
+  - -march=armv8.9-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+  - -march=armv8.7-a
+  - -march=armv8.8-a
+- Match: -march=armv9-a.*
+  Flags:
+  - -march=armv9-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+- Match: -march=armv9.1-a.*
+  Flags:
+  - -march=armv9.1-a
+  - -march=armv9-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+- Match: -march=armv9.2-a.*
+  Flags:
+  - -march=armv9.2-a
+  - -march=armv9-a
+  - -march=armv9.1-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+  - -march=armv8.7-a
+- Match: -march=armv9.3-a.*
+  Flags:
+  - -march=armv9.3-a
+  - -march=armv9-a
+  - -march=armv9.1-a
+  - -march=armv9.2-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+  - -march=armv8.7-a
+  - -march=armv8.8-a
+- Match: -march=armv9.4-a.*
+  Flags:
+  - -march=armv9.4-a
+  - -march=armv9-a
+  - -march=armv9.1-a
+  - -march=armv9.2-a
+  - -march=armv9.3-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+  - -march=armv8.7-a
+  - -march=armv8.8-a
+  - -march=armv8.9-a
+- Match: -march=armv9.5-a.*
+  Flags:
+  - -march=armv9.5-a
+  - -march=armv9-a
+  - -march=armv9.1-a
+  - -march=armv9.2-a
+  - -march=armv9.3-a
+  - -march=armv9.4-a
+  - -march=armv8-a
+  - -march=armv8.1-a
+  - -march=armv8.2-a
+  - -march=armv8.3-a
+  - -march=armv8.4-a
+  - -march=armv8.5-a
+  - -march=armv8.6-a
+  - -march=armv8.7-a
+  - -march=armv8.8-a
+  - -march=armv8.9-a
+  - -march=armv8.10-a
+- Match: -march=armv8-r.*
+  Flags:
+  - -march=armv8-r
+
