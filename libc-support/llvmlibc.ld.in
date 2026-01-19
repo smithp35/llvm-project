@@ -199,6 +199,11 @@ SECTIONS
 		PROVIDE(__exidx_end = .);
 	} >flash AT>flash :text
 	
+	.rela.dyn : {
+		PROVIDE(__rela_dyn_start = .);
+		*(.rela.dyn .rela.dyn.*)
+		PROVIDE(__rela_dyn_end = .);
+	} >flash AT>flash :text
 
 	/*
 	 * Data values which are preserved across reset
