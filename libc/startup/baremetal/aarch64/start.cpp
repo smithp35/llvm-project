@@ -48,7 +48,7 @@ void GenericException_Handler() { LIBC_NAMESPACE::exit(1); }
 void vector_table() {
 #define VECTOR_TABLE_ENTRY                                                     \
   asm(".balign 128");                                                          \
-  asm("B %0" : : "X"(GenericException_Handler));
+  asm("BR %0" : : "r"(GenericException_Handler));
 
   VECTOR_TABLE_ENTRY;
   VECTOR_TABLE_ENTRY;
@@ -107,6 +107,6 @@ extern "C" {
 [[gnu::section(".text.init.enter"), gnu::naked]]
 void _start() {
   asm volatile("mov sp, %0" : : "r"(&__stack));
-  asm volatile("bl %0" : : "X"(LIBC_NAMESPACE::do_start));
+  asm volatile("blr %0" : : "r"(LIBC_NAMESPACE::do_start));
 }
 } // extern "C"
