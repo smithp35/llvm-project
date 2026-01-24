@@ -69,6 +69,10 @@ void do_start() {
   memset(__bss_start, '\0', reinterpret_cast<size_t>(__bss_size));
 
   memory::enable_cache();
+#ifdef __ARM_FEATURE_PAUTH
+  // Resolve any PAuthABI relocations
+  misc::init_global_pointers();
+#endif // __ARM_FEATURE_PAUTH
   __libc_init_array();
   _platform_init();
   exit(main(0, 0));

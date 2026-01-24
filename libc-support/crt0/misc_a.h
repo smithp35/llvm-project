@@ -18,6 +18,69 @@ namespace misc {
 
 using namespace sysreg;
 
+#ifdef __ARM_FEATURE_PAUTH
+extern "C" {
+extern uintptr_t __rela_dyn_start;
+extern uintptr_t __rela_dyn_end;
+}
+
+typedef struct {
+  uint64_t r_offset;
+  uint64_t r_info;
+  int64_t r_addend;
+} Relocation;
+
+#define ELF64_R_SYM(i) ((i) >> 32)
+#define ELF64_R_TYPE(i) ((i) & 0xffffffffL)
+#define R_AARCH64_AUTH_RELATIVE 0x411
+
+#define APIA 0b00
+#define APIB 0b01
+#define APDA 0b10
+#define APDB 0b11
+
+void init_global_pointers(void) {
+  Relocation *rstart = (Relocation *)(uintptr_t)&__rela_dyn_start;
+  Relocation *rend = (Relocation *)(uintptr_t)&__rela_dyn_end;
+  for (Relocation *rp = rstart; rp != rend; ++rp) {
+    uint64_t address = rp->r_addend;
+    switch (ELF64_R_TYPE(rp->r_info)) {
+    case R_AARCH64_AUTH_RELATIVE: {
+      uint64_t schema = *(uint64_t *)rp->r_offset;
+      uint64_t address_diversity = schema >> 63;
+      uint64_t key = (schema >> 60) & 0x3;
+      uint64_t discriminator = (schema >> 32) & 0xffff;
+      uint64_t modifier = 0x0;
+      if (address_diversity) {
+        if (discriminator)
+          modifier =
+              (rp->r_offset & 0x0000ffffffffffff) | (discriminator << 48);
+        else
+          modifier = rp->r_offset;
+      } else
+        modifier = discriminator;
+
+      if (key == APIA)
+        __asm__ __volatile__("pacia %0, %1" : "+r"(address) : "r"(modifier));
+      else if (key == APIB)
+        __asm__ __volatile__("pacib %0, %1" : "+r"(address) : "r"(modifier));
+      else if (key == APDA)
+        __asm__ __volatile__("pacda %0, %1" : "+r"(address) : "r"(modifier));
+      else
+        __asm__ __volatile__("pacdb %0, %1" : "+r"(address) : "r"(modifier));
+      *(uint64_t *)rp->r_offset = address;
+      break;
+    }
+    default:
+      // Should abort here for unhandled relocation. Expect only
+      // R_AARCH64_AUTH_RELATIVE in bare-metal projects.
+      break;
+    }
+  }
+}
+
+#endif // __ARM_FEATURE_PAUTH
+
 void setup() {
 #ifdef __ARM_FEATURE_PAUTH
   // Set all of the pointer authentication keys to different values. In
