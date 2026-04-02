@@ -4,8 +4,10 @@
 
 * Add PAuthABI support to the bare-metal driver.
 
-* Add 3 new command-line options to describe the signing-schemas for a
+* Adds new command-line options to describe the signing-schemas for a
   bare-metal platform.
+
+* Adds a new low-level command-line option to control which keys are available.
 
 * The recommended signing-schemas are split into named profiles. With
   a custom profile allowing for full control.
@@ -47,29 +49,26 @@ its own ABI.
 ## Existing Linux target support for PAuthABI
 
 As each choice of signing-schema is its own ABI, deploying PAuthABI on
-an open platform such as Linux is challenging. The choice of a signing
-schema would either become the ABI for the distribution or an ABI for
-a multilib provided by the distribution.
+an open platform such as Linux is challenging. The choice of a signing-schema
+would either become the ABI for the distribution or an ABI for
+a multilib or nix package.
 
-As there is no commitment yet to a particular signing schema a "test"
-signing schema has been implemented in LLVM to highlight that the
-signing schema is subject to change.
+As there is no commitment yet to a particular signing-schema a "test"
+signing-schema has been implemented in LLVM to highlight that the
+signing-schema is subject to change.
 
-The test signing schema is available for AArch64 linux targets via the
+The test signing-schema is available for AArch64 linux targets via the
 environment pauthtest . This can be put into the target triple
 directly, like `aarch64-unknown-linux-pauthtest` or via
 `-mabi=pauthtest` which is canonicalised into the triple. The
 pauthtest environment is currently ignored by non linux triples.
 
 The pauthtest environment is not heavily used in the clang and llvm
-code-bases. Instead it sets a number of low-level options that define
-the signing schema. It also enables a bunch of command-line options to
-individually tweak these low-level options, with the proviso that each
-combination of low-level options is its own signing-schema and hence
-its own ABI.
-
-When pauthtest is used there are individual command-line options
-exposed that can produce a custom signing schema.
+code-bases. Instead use of the environment sets a number of low-level
+command-line options that define the signing schema. It also enables
+command-line options to individually tweak these low-level options,
+with the proviso that each combination of low-level options is its own
+signing-schema and hence its own ABI.
 
 Access-softek provide build scripts for a PAuthTest Linux sysroot
 based on a statically linked Musl toolchain
@@ -88,24 +87,24 @@ The `pauthtest` environment is currently restricted to the Linux
 driver. However the majority of PAuthABI can be supported on
 bare-metal with no additional run-time support. The remainder can be
 handled by an integrated "dynamic" relocation resolver that runs prior
-to main.
+to entering `main`.
 
 The intended use case for bare-metal PAuthABI is firmware and secure
-software that operates at the highest privilege level (EL3).
+software operating at the highest privilege level (EL3).
 
-While we are some way off defining a standard signing-schema for
-Linux, fully statically linked bare-metal systems can choose a
-signing- schema at build time which makes them an ideal first target
+Fully statically linked bare-metal systems can choose a
+signing-schema at build time which makes them an ideal first target
 for PAuthABI. The downside of targeting bare-metal systems is that
-there is no one size fits all signing-schema due to varying
-capabilities of each bare-metal system. Our expectation is that a
+there is no one size fits all signing-schema due to the wide variety of
+capabilities each bare-metal system posesses. Our expectation is that a
 small number of signing-schemas mapping to the most common use cases
 will be sufficient.
 
 This RFC is intended to determine what the command-line interface is
 for PAuthABI in the bare-metal driver. It also describes how to record
-the signing-schema in build attributes. While it can be independent of
-the existing `pauthtest` environment, it has been designed so that it
+the signing-schema using the existing ELF marking scheme. While the
+bare-metal configuration options can be independent of the existing
+`pauthtest` environment, it has been designed so that it
 can apply to a platform like Linux.
 
 Review question: Is there any motivation to formalise the support on
@@ -113,7 +112,7 @@ Linux beyond `pauthtest`? The `aarch64-linux-pauthtest` triple could
 in theory be retired in favour of `aarch64-linux-gnu` or more likely
 `aarch64-linux-musl` with something like
 `-mpauthabi-profile=pauthtest`. See [Appendix: PAuthTest and
--mpauthprofile](#appendix-pauthtest-and--mpauthprofile) for more
+-mpauthabi-profile](#appendix-pauthtest-and--mpauthabi-profile) for more
 details.
 
 The general idea for the command-line interface is:
@@ -125,9 +124,18 @@ The general idea for the command-line interface is:
   of pre-defined signing-schemas, `custom` for a hand-rolled
   signing-schema, or the default of `none` meaning no use of the
   PAuthABI. The profile has two effects. The first is to define the
-  signing-schema in terms of existing `-fptrauth` command-line
+  signing-schema in terms of existing low-level `-fptrauth` command-line
   options. The second is to set the platform identifier and version
   number in the ELF marking to one of the known profiles.
+
+* Each `-mpauthabi-profile` that isn't `none` or `custom` will have
+  an ELF marking within the same bare-metal `platform identifier`.
+  A `custom` profie will use a different `platform identifier`.
+
+* New option `-fptrauth-keys` to control which keys are available for
+  the signing schema to use. This is intended be used by
+  `-mpauthabi-profile`. This will be one of `a`, `b` and the
+  default of `both`.
 
 * The `-mpauthabi-profile` will initially be limited to the
   `aarch64-none-elf` target. The option could be enabled on other
@@ -170,7 +178,7 @@ The general idea for the command-line interface is:
 
 # PAuthABI profiles
 
-There are two architectural properties of bare-metal systems that have
+There are four architectural properties of bare-metal systems that have
 a significant effect on the signing-schema:
 
 * Does the system support relocation read-only (RELRO)? On a platform
@@ -191,31 +199,56 @@ a significant effect on the signing-schema:
   program can support type diversity for C function pointers then the
   signing-schema can incorporate that.
 
-This gives 4 named profiles each representing a permuation of these
-two decisions:
+* Which keys are available to be used. The Pauthtest and arm64e make
+  use of both keys, but in some systems the kernel and userspace use
+  different keys. For example kernel uses the B keys exclusively and
+  userspace the A keys exclusively.
 
-| Profile | RELRO | C function pointer type diversity |
-| ------- | ----- | --------------------------------- |
-| `baremetal-baseline` | No | No |
-| `baremetal-strict` | No | Yes |
-| `baremetal-baseline-relro` | Yes | No |
-| `baremetal-strict-relro` | Yes | Yes |
+* The version number of the profile. Ideally we only need one version
+  number, but if in the future we need to change the profile in an
+  incompatible way we can bump the version number.
+
+This gives 12 profiles, assuming version 1 only, each representing a
+permuation of these decisions.
+
+The defaults for baremetal are:
+
+* Not strict.
+* No RELRO.
+* Both Keys available.
+* Latest version.
+
+| Option | RELRO | C function pointer type diversity | keys | version |
+| ------ | ----- | --------------------------------- | ---- | ------- |
+| baremetal | No | No | AB | 1 |
+| baremetal+akey | No | No | A | 1 |
+| baremetal+bkey | No | No | B | 1 |
+| baremetal+strict | No | Yes | AB | 1 |
+| baremetal+strict+akey | No | Yes | A | 1 |
+| baremetal+strict+bkey | No | Yes | B | 1 |
+| baremetal+relro | Yes | No | AB | 1 |
+| baremetal+relro+akey | Yes | No | A | 1 |
+| baremetal+relro+bkey | Yes | No | B | 1 |
+| baremetal+strict+relro | Yes | Yes | AB | 1 |
+| baremetal+strict+relro | Yes | Yes | A | 1 |
+| baremetal+strict+relro | Yes | Yes | B | 1 |
 
 A prefix of `baremetal` has been used in case the `-mpauth-profile` is
 used for a target-triple including an `OS`, where there may be
 different or a restricted set of profiles available. For example an OS
 like Linux may wish to only support one profile that will closely
-match `baremetal-baseline-relro`.
+match `baremetal+relro`. A new value called `platform` could be the
+only acceptable option for triple's including `OS`.
 
-Review question: Is the baremetal prefix necessary? If the profiles
-are going to be similar between platforms then the `baremetal` prefix
-may not be necessary. Although there could be synonyms, for example
-`pauthtest` as a synonym for `baremetal-baseline-relro`.
+For an explicit version number we could add +vN where N is the version
+number. By default we would select the highest version number.
 
-Review question: Is the naming convention derived from the choices OK?
-Each additional design will double the number of profiles. An
-alternative using `+/-decision` or `+decision+no-decision` could also
-be used. Can anyone think of another profile?
+Review question: An alternative to cramming all the decisions into one
+command-line-option would be to split into one option each dimension.
+For example `--pauthabi-profile=baremetal` `--pauth-abi-profile-relro`
+`--pauthabi-profile-strict` and `--pauth-abi-profile-version`. The
+main disadvantage is having to validate the combination of these 4
+options separately, although parsing each one is easier.
 
 ## Evolving the signing-schema used in the profiles
 
@@ -252,6 +285,22 @@ language will not change the profile:
 
 * Obtain a version number for the profile if added to an existing
   platform identifier.
+
+## The -fptrauth-keys option
+
+This option is added to implement the key restrctions of the
+`-mpauthabi-profile` option. This is so a `custom` signing schema can
+replicate an option available to a profile.
+
+The available options are:
+| -mpauthabi-profile option | -fptrauth-keys | A key available | B key available |
+| ------------------------- | -------------- | --------------- | --------------- |
+| default                   | `both`         |               1 |               1 |
+| `+akey`                   | `a`            |               1 |               0 |
+| `+bkey`                   | `b`            |               0 |               1 |
+
+The `-fptrauth-keys` option can be restricted to the bare-metal target
+as it is not likely to be supported in PAuthTest/arm64e.
 
 ## Signing-schema for profiles
 
@@ -301,9 +350,9 @@ and language specific options.
 | ------------------- | ----------- | ---------------------------------------- |
 | `-faarch64_jump_table_hardening` | Use hardened lowering for jump-table dispatch | No |
 
-### baremetal-baseline
+### baremetal
 
-The baremetal baseline profile in terms of command-line options that
+The baseline profile in terms of command-line options that
 are significant across an interface boundary is made up of:
 
 - `-fptrauth-calls`
@@ -346,6 +395,11 @@ This describes a schema of:
 | `obj c ro pointers` | `APDA` | `Constant(0x61F8)` |
 | `obj c sel pointers` | `APDB` | `Constant(0x57c2)` |
 
+When `+akey` or `+bkey` is used then the Key in the table above is
+always the A key. For example for `+bkey` then `APIB` and `APDB`
+remains the same, `APIA` and `APDA` become `APIB` and `APDB`
+respectively.
+
 * Note: that the table above includes pointer types that do not have
   an associated command-line option to change the signing-schema.
 
@@ -363,13 +417,13 @@ This describes a schema of:
   rather than `AP` prefix, so `APIA` in the table above is `ASIA` in
   the source code.
 
-### baremetal-strict
+### baremetal+strict
 
-As `baremetal-baseline` but with type discrimination for C function
+As `baremetal` but with type discrimination for C function
 pointers enabled: - `-fptrauth-function-pointer-type-discrimination`
 
 This changes the signing schema of the function pointer row in the
-`baremetal-baseline` signing-schema to:
+`baremetal` signing-schema to:
 
 | Pointer | Key | Discriminator |
 | ------- | --- | ------------- |
@@ -378,9 +432,9 @@ This changes the signing schema of the function pointer row in the
 The program is responsible for the absence of casts that would change
 the type diversity of a C function pointer.
 
-### baremetal-baseline-relro
+### baremetal+relro
 
-As baremetal baseline but with GOT signing off.
+As `baremetal` but with GOT signing off.
 
 * `-fno-ptrauth-elf-got`
 
@@ -390,9 +444,9 @@ schema.
 The program is responsible for placing the GOT in RELRO, and for the
 runtime to enforce RELRO.
 
-### baremetal-strict-relro
+### baremetal+strict+relro
 
-As baremetal-baseline but with GOT signing off and type discrimination
+As `baremetal` but with GOT signing off and type discrimination
 for C function pointers enabled:
 
 * `-fptrauth-function-pointer-type-discrimination`
@@ -400,13 +454,13 @@ for C function pointers enabled:
 * `-fno-ptrauth-elf-got`
 
 This changes the signing schema of the function pointer row in the
-`baremetal-baseline` signing-schema to:
+`baremetal` signing-schema to:
 
 | Pointer | Key | Discriminator |
 | ------- | --- | ------------- |
 | `function pointer` | `APIA` | `Type` |
 
-Also removing the `ELF GOT` row from the baremetal-baseline signing
+Also removing the `ELF GOT` row from the `baremetal` signing
 schema.
 
 The program is responsible for the absence of casts that would change
@@ -466,9 +520,7 @@ of the
 
 #### Platform identifier
 
-When `-mpauthabi-profile` is one of `baremetal-baseline`,
-`baremetal-strict`, `baremetal-baseline-relro` or
-`baremetal-strict-relro` , the `baremetal-profile` platform-id is
+When `-mpauthabi-profile` includes `baremetal` the `baremetal-profile` platform-id is
 used. This can be overridden by `-mpauthabi-platformid=<number>`
 
 #### Version number
@@ -476,12 +528,20 @@ used. This can be overridden by `-mpauthabi-platformid=<number>`
 We map the profiles to the following bits in the version number. This
 can be overriden by `-mpauthabi-custom-version=<number>`
 
-| Profile name/Feature bit | Relro (1 << 1) | Strict (1 << 0) | value |
-| ------------------------ | -------------- | --------------- | ----- |
-| baseline | 0 | 0 | 0 |
-| strict | 0 | 1 | 1 |
-| baseline-relro | 1 | 0 | 2 |
-| strict-relro | 1 | 1 | 3 |
+| Profile name/Feature bit | Version [63 - 56] | RESERVED [55 - 4] | Relro [3] | Strict [2] | A key used [1] | B key used [0] | Value |
+| ------------------------ | ----------------- | ----------------- | --------- | ---------- | -------------- | -------------- | ------|
+| baremetal                |                 1 |                 - |         0 |          0 |              1 |              1 | 0x01000003 |
+| baremetal+akey           |                 1 |                 - |         0 |          0 |              1 |              0 | 0x01000002 |
+| baremetal+bkey           |                 1 |                 - |         0 |          0 |              0 |              1 | 0x01000001 |
+| baremetal+strict         |                 1 |                 - |         0 |          1 |              1 |              1 | 0x01000007 |
+| baremetal+strict+akey    |                 1 |                 - |         0 |          1 |              1 |              0 | 0x01000006 |
+| baremetal+strict+bkey    |                 1 |                 - |         0 |          1 |              0 |              1 | 0x01000005 |
+| baremetal+relro          |                 1 |                 - |         1 |          0 |              1 |              1 | 0x0100000b |
+| baremetal+relro+akey     |                 1 |                 - |         1 |          0 |              1 |              0 | 0x0100000a |
+| baremetal+relro+bkey     |                 1 |                 - |         1 |          0 |              0 |              1 | 0x01000009 |
+| baremetal+strict+relro   |                 1 |                 - |         1 |          1 |              1 |              1 | 0x0100000f |
+| baremetal+strict+relro+akey |                 1 |                 - |         1 |          1 |              1 |              0 | 0x0100000e |
+| baremetal+strict+relro+bkey |                 1 |                 - |         1 |          1 |              0 |              1 | 0x0100000d |
 
 ### Private experiments
 
@@ -535,7 +595,8 @@ bits for things like `-fptrauth-intrinsics`.
 | `-fptrauth-init-fini` | `PointerAuthInitFini` | 4 |
 | `-fptrauth-init-fini-address-discrimination` | `PointerAuthInitFiniAddressDiscrimination` | 5 |
 | `-fptrauth-elf-got` | `PointerAuthELFGOT` | 6 |
-| `RESERVED` | `RESERVED` | [7 - 15] |
+| `-fptrauth-elf-keys` | `TBD` | [7 - 8] `both` = `11`, `a` = `10`, `b` = `01` |
+| `RESERVED` | `RESERVED` | [9 - 15] |
 
 #### C/C++ specific options
 
@@ -584,7 +645,7 @@ enum : unsigned {
 };
 ```
 
-# Appendix: PAuthTest and `-mpauthprofile`
+# Appendix: PAuthTest and `-mpauthabi-profile`
 
 This appendix is a proposal for replacing the `pauthtest` environment
 with `-mpauthprofile`. It is dependent on the `-mpauthprofile`
