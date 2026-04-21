@@ -288,7 +288,7 @@ language will not change the profile:
 
 ## The -fptrauth-keys option
 
-This option is added to implement the key restrctions of the
+This option is added to implement the key restrictions of the
 `-mpauthabi-profile` option. This is so a `custom` signing schema can
 replicate an option available to a profile.
 
@@ -301,6 +301,11 @@ The available options are:
 
 The `-fptrauth-keys` option can be restricted to the bare-metal target
 as it is not likely to be supported in PAuthTest/arm64e.
+
+Aside: The current `ptrauth.h` header file in the clang resource
+directory hard-codes some of the key roles, libc++abi and libunwind
+make use of these values. I expect that we will need to define macros
+so that `ptrauth.h` can pickup the keys from `-fptrauth-keys`.
 
 ## Signing-schema for profiles
 
@@ -320,7 +325,7 @@ and language specific options.
 | ------------------- | ----------- | ---------------------------------------- |
 | `-fptrauth-intrinsics` | Enable ptrauth intrinscics | No, user responsible for matching signing-schema across interface boundaries. |
 | `-fptrauth-calls` | Enable signing and authentication of all indirect calls | Yes |
-| `-fptrauth-returns` | Enable signing and authentication of return addresses | No, runtime stack unwinding requires unwind metadata. |
+| `-fptrauth-returns` | Enable signing and authentication of return addresses | Yes, PAuthABI assumes all return addresses signed uniformly. |
 | `-fptrauth-auth-traps` | Enable traps on authentication failures | No |
 | `-fptrauth-init-fini` | Enable signing of function pointers in init/fini arrays | Yes |
 | `-fptrauth-init-fini-address-discrimination` | Enable address discrimination of function pointers in init/fini arrays | Yes |
@@ -473,7 +478,6 @@ The program is responsible for placing in the GOT in RELRO, and for the runtime 
 The following command-line options are all enabled by default.
 
 * `-fptrauth-intrinsics`
-* `-fptrauth-returns`
 * `-fptrauth-auth-traps`
 * `-faarch64_jump_table_hardening`
 
@@ -724,12 +728,13 @@ private experiments](#derived-signing-schema-for-private-experiments).
 The `-mbranch-protection` option is an existing option that focuses on
 control-flow integrity of branches with a limited effect on the ABI. A
 subset of the available options like `+pac-ret` use pointer
-authentication to protect the return address, although others such as
-`+bti` and `+gcs` do not use pointer authentication and can in
-principle be combined with PAuthABI. There is also a composite option
-`standard` which includes `+bti`, `+pac-ret` and `+gcs`. It is
-expected that future CFI integrity options that do not require a new
-ABI will be added to this option.
+authentication to protect the return address in an incompatible way to
+that required by the PAuthABI, although other options such as `+bti`
+and `+gcs` do not use pointer authentication and can in principle be
+combined with PAuthABI. There is also a composite option `standard`
+which includes `+bti`, `+pac-ret` and `+gcs`. It is expected that
+future CFI integrity options that do not require a new ABI will be
+added to this option.
 
 Initially a `-mpauthabi-profile` of anything other `none` will error if
 `-mbranch-protection` includes `pac-ret`. Including `standard`.
@@ -739,6 +744,10 @@ example could the PAuthABI signing schema override the more limited
 uses of pointer authentication given by -mbranch-protection,
 particularly when `standard` is used.
 
+At least one incompatibility of `-mbranch-protection=pac-ret` is that
+the unwinder uses metadata to determine how the return address is signed
+whereas the PAuthABI assumes the return address is signed the same way.
+
 ## Why not add to -mbranch-protection?
 
 While strongly related to `-mbranch-protection`, the PAuthABI involves
@@ -746,6 +755,14 @@ a substantial change to the ABI, and requires too many additional
 configuration options to shoehorn into `-mbranch-protection`. It would
 also raise expectations that it is additive to
 `-mbranch-protection=standard` rather than being an alternative.
+
+## Distro default -mbranch-protection?
+
+Some Linux distributions enable `-mbranch-protection=standard` by
+default, at least for `aarch64-linux-gnu` targets. This may conflict
+with any use of `-mpauthabi-profile`. If a future Linux PAuthABI
+uses the `aarch64-linux-gnu` target they may have to manually set
+`-mbranch-protection=none` to clear any distro default.
 
 # Appendix: Reasoning behind compatibility and versioning
 
