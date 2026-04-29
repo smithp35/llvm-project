@@ -1392,6 +1392,244 @@ void AddUnalignedAccessWarning(ArgStringList &CmdArgs) {
 }
 }
 
+// Central location to handle the AArch64 PAuthABI command-line options
+// this is primarily driven from the -mpauthabi-profile option.
+// Return true if a custom profile was requested. This unlocks the low-level
+// -fptrauth* command-line options.
+static bool CollectAArch64PAuthABIOptions(const ToolChain &TC,
+                                          const ArgList &Args,
+                                          ArgStringList &CmdArgs) {
+  const llvm::Triple &Triple = TC.getEffectiveTriple();
+  // PAuthABI is only supported on BareMetal and Linux.
+  if (!TC.isBareMetal() && !Triple.isOSLinux())
+    return false;
+
+  // PAuthABI requires -mpauthabi-profile.
+  const Arg *A = Args.getLastArg(options::OPT_pauthabi_profile_EQ);
+  if (!A)
+    return false;
+
+  // Cancel a previous instance of the option with a singular "none".
+  StringRef Val = A->getValue();
+  if (Val == "none")
+    return false;
+
+  // First argument is one of "platform" which starts with the signing-schema
+  // for the os part of the target triple (for supported OS) or bare-metal. Or
+  // the first argument is custom starts with the minimum viable pauthabi
+  // options and enables the -fptrauth low-level command-line options so that a
+  // custom signing-schema can be created.
+
+  // We allow several + modifiers to modify the signing-schema.
+
+  // Default choices for signing schema.
+  // Type discrimination for C function pointers is enabled with strict. This
+  // cannot be enabled by default as C allows casts that would change the
+  // signing schema.
+  uint64_t Strict = 0;
+  // The platform supports Relocation Read Only (RELRO) so the GOT does not
+  // need to be signed. It is assumed that Linux supports RELRO via existing
+  // dynamic loaders, but we cannot make that assumption for bare-metal.
+  uint64_t RELRO = Triple.isOSLinux() ? 1 : 0;
+  // Enable the low-level -fptrauth* command-line options. Use of these low
+  // level command-line options produces a custom signing schema.
+  bool Custom = false;
+  // If the signing-schema for a platform changes, a version number can
+  // choose between versions. Default to latest version for the platform.
+  // At present only one version exists.
+  uint64_t ProfileVersion = 1;
+  // Keys that can be used for the signing schema. Linux always enables
+  // both keys, bare-metal can restrict the signing-schema to just one key.
+  uint64_t AKey = 1;
+  uint64_t BKey = 1;
+
+  const Driver &D = TC.getDriver();
+
+  SmallVector<StringRef, 8> Opts;
+  Val.split(Opts, "+");
+
+  if (Opts[0] == "platform") {
+    for (int I = 1, E = Opts.size(); I != E; ++I) {
+      StringRef Opt = Opts[I].trim();
+      if (Opt == "akey")
+        AKey = 1;
+      else if (Opt == "noakey")
+        AKey = 0;
+      else if (Opt == "bkey")
+        BKey = 1;
+      else if (Opt == "nobkey")
+        BKey = 0;
+      else if (Opt == "relro")
+        RELRO = 1;
+      else if (Opt == "norelro")
+        RELRO = 0;
+      else if (Opt == "strict")
+        Strict = 1;
+      else if (Opt == "nostrict")
+        Strict = 0;
+      else if (Opt.starts_with("v")) {
+        StringRef V = Opt.drop_front();
+        unsigned long long VN;
+        if (!getAsUnsignedInteger(V, getAutoSenseRadix(V), VN))
+          ProfileVersion = VN;
+        else
+          D.Diag(diag::err_drv_unsupported_option_argument)
+              << A->getSpelling() << "Version not a number";
+      } else
+        D.Diag(diag::err_drv_unsupported_option_argument)
+            << A->getSpelling() << Opt;
+    }
+  } else if (Opts[0] == "custom") {
+    Custom = true;
+    Arg *AKeyArg = Args.getLastArg(options::OPT_fptrauth_noakey,
+                                   options::OPT_fno_ptrauth_noakey);
+    if (AKeyArg && AKeyArg->getOption().matches(options::OPT_fptrauth_noakey))
+      AKey = 0;
+    Arg *BKeyArg = Args.getLastArg(options::OPT_fptrauth_nobkey,
+                                   options::OPT_fno_ptrauth_nobkey);
+    if (BKeyArg && BKeyArg->getOption().matches(options::OPT_fptrauth_nobkey))
+      BKey = 0;
+    if (AKey == 0 && BKey == 0)
+      D.Diag(diag::err_drv_incompatible_options)
+          << "-fptrauth_noakey" << "-fptrauth_nobkey";
+  } else {
+    D.Diag(diag::err_drv_unsupported_option_argument)
+        << A->getSpelling() << "expected platform, custom or none";
+  }
+
+  // Validate additional options for platform
+  if (!Custom) {
+    if (Triple.isOSLinux() && (!AKey || !BKey))
+      D.Diag(diag::err_drv_unsupported_option_argument)
+          << A->getSpelling() << "Linux platform requires both A and B keys";
+    else if (!AKey && !BKey)
+      D.Diag(diag::err_drv_unsupported_option_argument)
+          << A->getSpelling() << "At least one of A or B key must be enabled";
+    if (ProfileVersion > 255)
+      // General case limitation of the signing schema.
+      D.Diag(diag::err_drv_unsupported_option_argument)
+          << A->getSpelling()
+          << "out of range version number, must be in range [0-255]";
+    else if (ProfileVersion != 1)
+      D.Diag(diag::err_drv_unsupported_option_argument)
+          << A->getSpelling() << "Unknown profile version for platfom";
+  }
+
+  // Describe the front-end state by a set of flags.
+  struct PAuthABIFlag {
+    OptSpecifier PosFlag;
+    OptSpecifier NegFlag;
+    const char *CC1Arg;
+  };
+
+  // The minimum recommend flags for PAuthABI so that
+  // CompilerInvocation::setDefaultPointerAuthOptions() is called.
+  std::vector<PAuthABIFlag> CustomProfileFlags = {
+      {options::OPT_fptrauth_calls, options::OPT_fno_ptrauth_calls,
+       "-fptrauth-calls"},
+      {options::OPT_fptrauth_returns, options::OPT_fno_ptrauth_returns,
+       "-fptrauth-returns"},
+      {options::OPT_fptrauth_auth_traps, options::OPT_fno_ptrauth_auth_traps,
+       "-fptrauth-auth-traps"},
+      {options::OPT_fptrauth_indirect_gotos,
+       options::OPT_fno_ptrauth_indirect_gotos, "-fptrauth-indirect-gotos"},
+      {options::OPT_faarch64_jump_table_hardening,
+       options::OPT_fno_aarch64_jump_table_hardening,
+       "-faarch64-jump-table-hardening"}};
+
+  // Common flags set for all profiles. FIXME, we don't use the options part
+  // of the structure, although we would if we started Custom with the platform
+  // default signing-schema.
+  std::vector<PAuthABIFlag> ProfileFlags = {
+      {options::OPT_fptrauth_intrinsics, options::OPT_fno_ptrauth_intrinsics,
+       "-fptrauth-intrinsics"},
+      {options::OPT_fptrauth_calls, options::OPT_fno_ptrauth_calls,
+       "-fptrauth-calls"},
+      {options::OPT_fptrauth_returns, options::OPT_fno_ptrauth_returns,
+       "-fptrauth-returns"},
+      {options::OPT_fptrauth_auth_traps, options::OPT_fno_ptrauth_auth_traps,
+       "-fptrauth-auth-traps"},
+      {options::OPT_fptrauth_vtable_pointer_address_discrimination,
+       options::OPT_fno_ptrauth_vtable_pointer_address_discrimination,
+       "-fptrauth-vtable-pointer-address-discrimination"},
+      {options::OPT_fptrauth_vtable_pointer_type_discrimination,
+       options::OPT_fno_ptrauth_vtable_pointer_type_discrimination,
+       "-fptrauth-vtable-pointer-type-discrimination"},
+      {options::OPT_fptrauth_type_info_vtable_pointer_discrimination,
+       options::OPT_fno_ptrauth_type_info_vtable_pointer_discrimination,
+       "-fptrauth-type-info-vtable-pointer-discrimination"},
+      {options::OPT_fptrauth_indirect_gotos,
+       options::OPT_fno_ptrauth_indirect_gotos, "-fptrauth-indirect-gotos"},
+      {options::OPT_fptrauth_init_fini, options::OPT_fno_ptrauth_init_fini,
+       "-fptrauth-init-fini"},
+      {options::OPT_fptrauth_init_fini_address_discrimination,
+       options::OPT_fno_ptrauth_init_fini_address_discrimination,
+       "-fptrauth-init-fini-address-discrimination"},
+      {options::OPT_faarch64_jump_table_hardening,
+       options::OPT_fno_aarch64_jump_table_hardening,
+       "-faarch64-jump-table-hardening"}};
+
+  // Add CC1 flags for signing-schema. If Custom is used then we check to see
+  // if the user has already used the low-level options before adding. If
+  // Custom isn't in use then we unconditionally add the CC1 flags.
+  auto AddCC1Arg = [Custom, &Args, &CmdArgs](const PAuthABIFlag &ProfileFlag) {
+    if (!Custom || !Args.hasArg(ProfileFlag.PosFlag, ProfileFlag.NegFlag))
+      CmdArgs.push_back(ProfileFlag.CC1Arg);
+  };
+  if (Custom)
+    llvm::for_each(CustomProfileFlags, AddCC1Arg);
+  else {
+    llvm::for_each(ProfileFlags, AddCC1Arg);
+    // Add additional profile options.
+    if (Strict)
+      CmdArgs.push_back("-fptrauth-function-pointer-type-discrimination");
+    if (!RELRO)
+      CmdArgs.push_back("-fptrauth-elf-got");
+  }
+  if (!AKey)
+    CmdArgs.push_back("-fptrauth-noakey");
+  if (!BKey)
+    CmdArgs.push_back("-fptrauth-nobkey");
+
+  // Add Signing Schema flags (Platform, Version)
+  // Custom signing schemas are expected to set the platform id themselves.
+  // User of the platform profiles are expected to use the platform
+  // defaults below.
+  if (Args.hasArg(options::OPT_pauthabi_platform_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_pauthabi_platform_EQ);
+  else {
+    if (Custom)
+      // Default is first in range of private experiments.
+      CmdArgs.push_back("-mpauthabi-platform=0x0100000000000000");
+    else if (TC.isBareMetal())
+      CmdArgs.push_back("-mpauthabi-platform=0x1");
+    else if (Triple.isOSLinux())
+      CmdArgs.push_back("-mpauthabi-platform=0x2");
+  }
+  // Custom signing schemas are expected to set the version themselves.
+  // Users of the platform profiles are expected to use the platform
+  // defaults. We do not set a default Version for custom, this will
+  // be derived later by the frontend from the -fptrauth* flags.
+  if (Args.hasArg(options::OPT_pauthabi_version_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_pauthabi_version_EQ);
+  else if (!Custom) {
+    // Version Number is derived from:
+    // [63-56] Profile Version
+    // [55-4]  Reserved
+    // [3]     RELRO
+    // [2]     Strict
+    // [1]     A Key Enabled
+    // [0]     B Key Enabled
+    uint64_t VersionNum = (ProfileVersion << 56) | (RELRO << 3) |
+                          (Strict << 2) | (AKey << 1) | (BKey);
+    CmdArgs.push_back(Args.MakeArgString(llvm::Twine("-mpauthabi-version=") +
+                                         llvm::Twine(VersionNum)));
+  }
+  // FIXME The Custom options reuse the existing code path for PAuthTest
+  // We could handle them here and make this a void function.
+  return Custom;
+}
+
 static void CollectARMPACBTIOptions(const ToolChain &TC, const ArgList &Args,
                                     ArgStringList &CmdArgs, bool isAArch64) {
   const llvm::Triple &Triple = TC.getEffectiveTriple();
@@ -1464,6 +1702,7 @@ static void CollectARMPACBTIOptions(const ToolChain &TC, const ArgList &Args,
   bool HasPtrauthReturns =
       PtrauthReturnsArg &&
       PtrauthReturnsArg->getOption().matches(options::OPT_fptrauth_returns);
+
   // GCS is currently untested with ptrauth-returns, but enabling this could be
   // allowed in future after testing with a suitable system.
   if (Scope != "none" || BranchProtectionPAuthLR || GuardedControlStack) {
@@ -1715,9 +1954,13 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
 
   AddUnalignedAccessWarning(CmdArgs);
 
+  bool HasCustomPAuthABIProfile =
+      CollectAArch64PAuthABIOptions(getToolChain(), Args, CmdArgs);
+
   if (Triple.isOSDarwin() ||
       (Triple.isOSLinux() &&
-       Triple.getEnvironment() == llvm::Triple::PAuthTest)) {
+       Triple.getEnvironment() == llvm::Triple::PAuthTest) ||
+      HasCustomPAuthABIProfile) {
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_intrinsics,
                       options::OPT_fno_ptrauth_intrinsics);
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_calls,
@@ -1741,8 +1984,9 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_indirect_gotos,
                       options::OPT_fno_ptrauth_indirect_gotos);
   }
-  if (Triple.isOSLinux() &&
-      Triple.getEnvironment() == llvm::Triple::PAuthTest) {
+  if ((Triple.isOSLinux() &&
+       Triple.getEnvironment() == llvm::Triple::PAuthTest) ||
+      HasCustomPAuthABIProfile) {
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_init_fini,
                       options::OPT_fno_ptrauth_init_fini);
     Args.addOptInFlag(

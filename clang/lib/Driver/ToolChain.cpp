@@ -311,6 +311,11 @@ static void getAArch64MultilibFlags(const Driver &D,
     Result.push_back(BranchProtectionArg->getAsString(Args));
   }
 
+  if (const Arg *PAuthABIProfileArg =
+      Args.getLastArgNoClaim(options::OPT_pauthabi_profile_EQ))
+    // TODO Canolicalise the order of flags.
+    Result.push_back(PAuthABIProfileArg->getAsString(Args));
+
   if (FeatureSet.contains("+strict-align"))
     Result.push_back("-mno-unaligned-access");
   else
