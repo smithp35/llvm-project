@@ -313,6 +313,30 @@ static void getAArch64MultilibFlags(const Driver &D,
     Result.push_back(BranchProtectionArg->getAsString(Args));
   }
 
+  if (const Arg *PAuthABIProfileArg =
+          Args.getLastArgNoClaim(options::OPT_pauthabi_profile_EQ)) {
+    Result.push_back(PAuthABIProfileArg->getAsString(Args));
+    if (const Arg *PAuthABIProfileStrictArg =
+            Args.getLastArgNoClaim(options::OPT_mpauthabi_profile_strict,
+                                   options::OPT_mno_pauthabi_profile_strict))
+      Result.push_back(PAuthABIProfileStrictArg->getAsString(Args));
+    if (const Arg *PAuthABIProfileRelroArg =
+            Args.getLastArgNoClaim(options::OPT_mpauthabi_profile_relro,
+                                   options::OPT_mno_pauthabi_profile_relro))
+      Result.push_back(PAuthABIProfileRelroArg->getAsString(Args));
+    if (const Arg *PAuthABIProfileKeysArg =
+            Args.getLastArgNoClaim(options::OPT_pauthabi_profile_keys_EQ)) {
+      // Expand short-form.
+      StringRef S = PAuthABIProfileKeysArg->getValue();
+      if (S == "a")
+        Result.push_back("-mpauthabi-profile-keys=iadaiada");
+      else if (S == "b")
+        Result.push_back("-mpauthabi-profile-keys=ibdbibdb");
+      else
+        Result.push_back(PAuthABIProfileKeysArg->getAsString(Args));
+    }
+  }
+
   if (FeatureSet.contains("+strict-align"))
     Result.push_back("-mno-unaligned-access");
   else
