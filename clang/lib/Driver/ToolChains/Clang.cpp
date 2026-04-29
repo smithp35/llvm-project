@@ -24,6 +24,7 @@
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/MakeSupport.h"
 #include "clang/Basic/ObjCRuntime.h"
+#include "clang/Basic/PointerAuthOptions.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Action.h"
@@ -1392,6 +1393,244 @@ void AddUnalignedAccessWarning(ArgStringList &CmdArgs) {
 }
 }
 
+// Helper function to enable the low-level command-line options
+// needed by -mpauthabi-profile=custom. Each combination of flags
+// is its own incompatible ABI.
+static void PAuthABIProfileCustomArgs(const Driver &D,
+                                      const ArgList &Args,
+                                      ArgStringList &CmdArgs) {
+  // Minimum ptrauth options.
+  if (!Args.hasArg(options::OPT_fptrauth_calls, options::OPT_fno_ptrauth_calls))
+    CmdArgs.push_back("-fptrauth-calls");
+  if (!Args.hasArg(options::OPT_fptrauth_returns,
+                   options::OPT_fno_ptrauth_returns))
+    CmdArgs.push_back("-fptrauth-returns");
+  if (!Args.hasArg(options::OPT_fptrauth_auth_traps,
+                   options::OPT_fno_ptrauth_auth_traps))
+    CmdArgs.push_back("-fptrauth-auth-traps");
+  if (!Args.hasArg(options::OPT_fptrauth_indirect_gotos,
+                   options::OPT_fno_ptrauth_indirect_gotos))
+    CmdArgs.push_back("-fptrauth-indirect-gotos");
+  if (!Args.hasArg(options::OPT_faarch64_jump_table_hardening,
+                   options::OPT_fno_aarch64_jump_table_hardening))
+    CmdArgs.push_back("-faarch64-jump-table-hardening");
+
+  // PAuthABI profile specific -fptrauth-* flags not handled later by
+  // arm64e PAuthTest code.
+  if (Args.getLastArg(options::OPT_ptrauth_proc_ind_inst_key_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_ptrauth_proc_ind_inst_key_EQ);
+  if (Args.getLastArg(options::OPT_ptrauth_proc_ind_data_key_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_ptrauth_proc_ind_data_key_EQ);
+  if (Args.getLastArg(options::OPT_ptrauth_proc_dep_inst_key_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_ptrauth_proc_dep_inst_key_EQ);
+  if (Args.getLastArg(options::OPT_ptrauth_proc_dep_data_key_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_ptrauth_proc_dep_data_key_EQ);
+
+  // Add Signing Schema flags (Platform, Version)
+  // The ABI defined signing-schema is defined by the custom
+  // profile. Custom profiles must choose these values as these
+  // define their signing-schema ABI.
+  if (Args.hasArg(options::OPT_pauthabi_platform_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_pauthabi_platform_EQ);
+  else
+    D.Diag(diag::err_drv_missing_pauthabi_platform);
+  if (Args.hasArg(options::OPT_pauthabi_version_EQ))
+    Args.AddLastArg(CmdArgs, options::OPT_pauthabi_version_EQ);
+  else
+    D.Diag(diag::err_drv_missing_pauthabi_version);
+}
+
+// Central location to handle the AArch64 PAuthABI command-line options
+// this is primarily driven from the -mpauthabi-profile option. A profile
+// is a high-level description of a signing-schema that is broken down into
+// individual -fptrauth-* command-lines to be sent to cc1.
+//
+// Return true if a custom profile was requested. Using a custom profile
+// permits the user to set their own -fptrauth-* command-line options. A
+// majority of these are common to PAuthTest and arm64e and are handled
+// by shared code later on.
+static bool CollectAArch64PAuthABIOptions(const ToolChain &TC,
+                                          const ArgList &Args,
+                                          ArgStringList &CmdArgs) {
+  const llvm::Triple &Triple = TC.getEffectiveTriple();
+  // PAuthABI is currently supported on BareMetal and Linux targets.
+  if (!TC.isBareMetal() && !Triple.isOSLinux())
+    return false;
+
+  // PAuthABI requires -mpauthabi-profile.
+  const Arg *A = Args.getLastArg(options::OPT_pauthabi_profile_EQ);
+  if (!A)
+    return false;
+
+  // -mpauthabi-profile=none disables the PAuthABI.
+  StringRef Val = A->getValue();
+  if (Val == "none")
+    return false;
+
+  // PAuthABI profile requires the +pauth feature (mandatory from Armv8.3-A)
+  const Driver &D = TC.getDriver();
+  bool SupportsPAuth = false;
+  auto IsPAuth = [](const char *member) {
+    llvm::AArch64::ExtensionInfo pauth_extension =
+        llvm::AArch64::getExtensionByID(llvm::AArch64::AEK_PAUTH);
+    return llvm::AArch64::StrTab[pauth_extension.PosTargetFeature] == member;
+  };
+  if (llvm::any_of(CmdArgs, IsPAuth))
+    SupportsPAuth = true;
+  if (!SupportsPAuth)
+    D.Diag(diag::err_drv_unsupported_opt_for_target)
+        << A->getAsString(Args) << Triple.getTriple();
+
+  // Argument for -mpauthabi-profile is one of "custom" or "target".
+  //
+  // If the argument is "custom" we hand off to a separate function that
+  // enables the low-level -fptrauth-* command line options.
+  //
+  // If the argument is "target" the signing-schema is to the default for
+  // the target-triple. It is expected that an OS like a linux distribution
+  // will only support one signing-schema, but a statically linked bare-metal
+  // toolchain can support a small number of signing-schema choices. The
+  // low-level -fptrauth-* options are not enabled when the profile is
+  // target.
+
+  if (Val == "custom") {
+    PAuthABIProfileCustomArgs(D, Args, CmdArgs);
+    return true;
+  } else if (Val != "target") {
+    D.Diag(diag::err_drv_unsupported_option_argument)
+        << A->getSpelling() << "expected target, custom or none";
+  }
+
+  // -fptrauth-* low-level options common to all profiles.
+  CmdArgs.push_back("-fptrauth-intrinsics");
+  CmdArgs.push_back("-fptrauth-calls");
+  CmdArgs.push_back("-fptrauth-returns");
+  CmdArgs.push_back("-fptrauth-auth-traps");
+  CmdArgs.push_back("-fptrauth-vtable-pointer-address-discrimination");
+  CmdArgs.push_back("-fptrauth-vtable-pointer-type-discrimination");
+  CmdArgs.push_back("-fptrauth-type-info-vtable-pointer-discrimination");
+  CmdArgs.push_back("-fptrauth-indirect-gotos");
+  CmdArgs.push_back("-fptrauth-init-fini");
+  CmdArgs.push_back("-fptrauth-init-fini-address-discrimination");
+  CmdArgs.push_back("-faarch64-jump-table-hardening");
+
+  // Type discrimination for C function pointers is enabled with strict. This
+  // cannot be enabled by default as C allows casts that would change the
+  // signing schema.
+  bool Strict = Args.hasFlag(options::OPT_mpauthabi_profile_strict,
+                             options::OPT_mno_pauthabi_profile_strict, false);
+  if (Strict)
+    CmdArgs.push_back("-fptrauth-function-pointer-type-discrimination");
+
+  // The platform supports Relocation Read Only (RELRO) so the GOT does not
+  // need to be signed. It is assumed that Linux supports RELRO via existing
+  // dynamic loaders, but we cannot make that assumption for bare-metal.
+  bool RELRO =
+      Args.hasFlag(options::OPT_mpauthabi_profile_relro,
+                   options::OPT_mno_pauthabi_profile_relro, Triple.isOSLinux());
+  if (!RELRO)
+    CmdArgs.push_back("-fptrauth-elf-got");
+
+  // Default to the arm64e, PAuthTest key choices.
+  using KeyType = PointerAuthSchema::ARM8_3Key;
+  KeyType PiIKey = KeyType::ASIA;
+  KeyType PiDKey = KeyType::ASDA;
+  KeyType PdIKey = KeyType::ASIB;
+  KeyType PdDKey = KeyType::ASDB;
+  if (TC.isBareMetal() && Args.hasArg(options::OPT_pauthabi_profile_keys_EQ)) {
+    // The bare-metal targets may customize the keys used in the
+    // signing-schema. For example user-space may use the A keys and kernel
+    // space may use the B keys. As these cannot easily and concisely be
+    // described by flags we use a separate -mpauthabi-profile-keys option.
+    // The keys below are the default with the process-independent keys using
+    // the A keys, and the process-dependent keys using the B keys. Keys can
+    // be specified in one of two ways. Either in abbreviated or long form.
+
+    const Arg *A = Args.getLastArg(options::OPT_pauthabi_profile_keys_EQ);
+    StringRef S = A->getValue();
+    if (S.size() == 1) {
+      // abbreviated form. All keys are either a or b keys.
+      if (S != "a" && S != "b")
+        D.Diag(diag::err_drv_unsupported_option_argument)
+            << A->getSpelling()
+            << "expect a, b, or iAdBiCdD where ABCD are either a or b";
+      bool UseA = S == "a";
+      PiIKey = UseA ? KeyType::ASIA : KeyType ::ASIB;
+      PiDKey = UseA ? KeyType::ASDA : KeyType ::ASDB;
+      PdIKey = UseA ? KeyType::ASIA : KeyType ::ASIB;
+      PdDKey = UseA ? KeyType::ASDA : KeyType ::ASDB;
+    } else if (S.size() == 8) {
+      // long form. Syntax is iAdBiCdD where ABCD can be one of a or b. With
+      // process independent coming first.
+      auto getInstrKey = [&D, &A](StringRef KeyStr, KeyType DefaultKey) {
+        if (KeyStr[0] != 'i' || (KeyStr[1] != 'a' && KeyStr[1] != 'b')) {
+          D.Diag(diag::err_drv_unsupported_option_argument)
+              << A->getSpelling() << "expect ia or ib for instruction key.";
+          return DefaultKey;
+        }
+        return KeyStr[1] == 'a' ? KeyType::ASIA : KeyType::ASIB;
+      };
+      auto getDataKey = [&D, &A](StringRef KeyStr, KeyType DefaultKey) {
+        if (KeyStr[0] != 'd' || (KeyStr[1] != 'a' && KeyStr[1] != 'b')) {
+          D.Diag(diag::err_drv_unsupported_option_argument)
+              << A->getSpelling() << "expect da or db for data key.";
+          return DefaultKey;
+        }
+        return (KeyStr[1] == 'a') ? KeyType::ASDA : KeyType::ASDB;
+      };
+      PiIKey = getInstrKey(S.slice(0, 2), KeyType::ASIA);
+      PiDKey = getDataKey(S.slice(2, 4), KeyType::ASDA);
+      PdIKey = getInstrKey(S.slice(4, 6), KeyType::ASIB);
+      PdDKey = getDataKey(S.slice(6, 8), KeyType::ASDB);
+    } else {
+      D.Diag(diag::err_drv_unsupported_option_argument)
+          << A->getSpelling()
+          << "expect a, b, or iAdBiCdD where ABCD are either a or b";
+    }
+    CmdArgs.push_back(PiIKey == KeyType::ASIA
+                          ? "-fptrauth-proc-ind-inst-key=ia"
+                          : "-fptrauth-proc-ind-inst-key=ib");
+    CmdArgs.push_back(PiDKey == KeyType::ASDA
+                          ? "-fptrauth-proc-ind-data-key=da"
+                          : "-fptrauth-proc-ind-data-key=db");
+    CmdArgs.push_back(PdIKey == KeyType::ASIA
+                          ? "-fptrauth-proc-dep-inst-key=ia"
+                          : "-fptrauth-proc-dep-inst-key=ib");
+    CmdArgs.push_back(PdDKey == KeyType::ASDA
+                          ? "-fptrauth-proc-dep-data-key=da"
+                          : "-fptrauth-proc-dep-data-key=db");
+  }
+
+  // Add Signing Schema flags (Platform, Version)
+  // Each supported target has an ABI defined signing-schema.
+  if (TC.isBareMetal())
+    CmdArgs.push_back("-mpauthabi-platform=0x1");
+  if (Triple.isOSLinux())
+    CmdArgs.push_back("-mpauthabi-platform=0x2");
+
+  // The version number for the signing-schemas is hard-coded
+  // to 1. When a new version for a target is created a new
+  // command-line option will be needed to specifify the version.
+  const uint64_t ProfileVersion = 1;
+
+  // Version Number for mpauthabi-version is derived from:
+  // [63-56] Profile Version
+  // [55-10] Reserved
+  // [9]     RELRO
+  // [8]     Strict
+  // [6-7]   Process Independent Instruction Key
+  // [4-5]   Process Independent Data Key
+  // [2-3]   Process Dependent Instruction Key
+  // [0-1]   Process Dependent Data Key
+  uint64_t VersionNum = (ProfileVersion << 56) | (RELRO << 9) | (Strict << 8) |
+                        ((unsigned)PiIKey << 6) | ((unsigned)PiDKey << 4) |
+                        ((unsigned)PdIKey << 2) | (unsigned)PdDKey;
+  CmdArgs.push_back(Args.MakeArgString(llvm::Twine("-mpauthabi-version=") +
+                                       llvm::Twine(VersionNum)));
+  // Not a custom profile.
+  return false;
+}
+
 static void CollectARMPACBTIOptions(const ToolChain &TC, const ArgList &Args,
                                     ArgStringList &CmdArgs, bool isAArch64) {
   const llvm::Triple &Triple = TC.getEffectiveTriple();
@@ -1511,9 +1750,16 @@ static void CollectARMPACBTIOptions(const ToolChain &TC, const ArgList &Args,
     if (Triple.getEnvironment() == llvm::Triple::PAuthTest)
       D.Diag(diag::err_drv_unsupported_opt_for_target)
           << A->getAsString(Args) << Triple.getTriple();
+    else if (Arg *PAuthABIProfileArg =
+                 Args.getLastArg(options::OPT_pauthabi_profile_EQ)) {
+      StringRef S = PAuthABIProfileArg->getValue();
+      if (S != "none")
+        D.Diag(diag::err_drv_incompatible_options)
+            << A->getAsString(Args) << PAuthABIProfileArg->getAsString(Args);
+    }
     else if (HasPtrauthReturns)
       D.Diag(diag::err_drv_incompatible_options)
-          << A->getAsString(Args) << "-fptrauth-returns";
+        << A->getAsString(Args) << "-fptrauth-returns";
   }
 
   CmdArgs.push_back(
@@ -1771,9 +2017,13 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
 
   AddUnalignedAccessWarning(CmdArgs);
 
+  bool HasCustomPAuthABIProfile =
+      CollectAArch64PAuthABIOptions(getToolChain(), Args, CmdArgs);
+
   if (Triple.isOSDarwin() ||
       (Triple.isOSLinux() &&
-       Triple.getEnvironment() == llvm::Triple::PAuthTest)) {
+       Triple.getEnvironment() == llvm::Triple::PAuthTest) ||
+      HasCustomPAuthABIProfile) {
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_intrinsics,
                       options::OPT_fno_ptrauth_intrinsics);
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_calls,
@@ -1800,8 +2050,9 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_indirect_gotos,
                       options::OPT_fno_ptrauth_indirect_gotos);
   }
-  if (Triple.isOSLinux() &&
-      Triple.getEnvironment() == llvm::Triple::PAuthTest) {
+  if ((Triple.isOSLinux() &&
+       Triple.getEnvironment() == llvm::Triple::PAuthTest) ||
+      HasCustomPAuthABIProfile) {
     Args.addOptInFlag(CmdArgs, options::OPT_fptrauth_init_fini,
                       options::OPT_fno_ptrauth_init_fini);
     Args.addOptInFlag(

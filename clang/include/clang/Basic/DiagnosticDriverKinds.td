@@ -692,6 +692,14 @@ def err_drv_missing_symbol_graph_dir: Error<
   "must provide a symbol graph output directory using "
   "'--symbol-graph-dir=<directory>'">;
 
+def err_drv_missing_pauthabi_platform: Error<
+  "custom profile must provide a platform id using "
+  "'-mpauthabi-platform=<number>'">;
+
+def err_drv_missing_pauthabi_version: Error<
+  "custom profile must provide a non-zero version number using "
+  "'-mpauthabi-version=<version>'">;
+
 def err_drv_unexpected_symbol_graph_output : Error<
   "unexpected output symbol graph '%1'; please provide "
   "'--symbol-graph-dir=<directory>' instead">;

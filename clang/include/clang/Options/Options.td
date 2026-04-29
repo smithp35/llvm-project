@@ -5187,6 +5187,23 @@ def pauthabi_profile_version_EQ : Joined<["-"], "mpauthabi-profile-version=">,
   Group<m_Group>, Visibility<[ClangOption]>,
   MetaVarName<"N">,
   HelpText<"Set the ELF PAuthABI profile version number, must be in range [0-255]">;
+def pauthabi_profile_keys_EQ : Joined<["-"], "mpauthabi-profile-keys=">,
+  Group<m_Group>, Visibility<[ClangOption]>,
+  HelpText<"Set the keys to use for the ELF PAuthABI profile. "
+           "Expect iAdBiCdD, where ABCD are either a or b. "
+           "Process indendent first. Or just a or b to set all keys at once.">;
+def mpauthabi_profile_strict : Flag<["-"], "mpauthabi-profile-strict">,
+  Group<m_aarch64_Features_Group>, Visibility<[ClangOption]>,
+  HelpText<"Enable strict profile that enables type discrimination on C function pointers">;
+def mno_pauthabi_profile_strict : Flag<["-"], "mno-pauthabi-profile-strict">,
+  Group<m_aarch64_Features_Group>, Visibility<[ClangOption]>,
+  HelpText<"Disable strict profile. No type discrimination on C function pointers">;
+def mpauthabi_profile_relro : Flag<["-"], "mpauthabi-profile-relro">,
+  Group<m_aarch64_Features_Group>, Visibility<[ClangOption]>,
+  HelpText<"Assume GOT is relocation read-only (RELRO) so it can remain unsigned">;
+def mno_pauthabi_profile_relro : Flag<["-"], "mno-pauthabi-profile-relro">,
+  Group<m_aarch64_Features_Group>, Visibility<[ClangOption]>,
+  HelpText<"Assume GOT is read-write so it must be signed">;
 defm ptrauth_intrinsics : OptInCC1FFlag<"ptrauth-intrinsics", "Enable pointer authentication intrinsics">;
 defm ptrauth_calls : OptInCC1FFlag<"ptrauth-calls", "Enable signing and authentication of all indirect calls">;
 defm ptrauth_returns : OptInCC1FFlag<"ptrauth-returns", "Enable signing and authentication of return addresses">;
