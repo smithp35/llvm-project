@@ -1414,6 +1414,20 @@ static bool CollectAArch64PAuthABIOptions(const ToolChain &TC,
   if (Val == "none")
     return false;
 
+  const Driver &D = TC.getDriver();
+  // PAuthABI profile requires the pauth feature (mandatory from Armv8.3-A)
+  bool SupportsPAuth = false;
+  auto IsPAuth = [](const char *member) {
+    llvm::AArch64::ExtensionInfo pauth_extension =
+        llvm::AArch64::getExtensionByID(llvm::AArch64::AEK_PAUTH);
+    return pauth_extension.PosTargetFeature == member;
+  };
+  if (llvm::any_of(CmdArgs, IsPAuth))
+    SupportsPAuth = true;
+  if (!SupportsPAuth)
+    D.Diag(diag::err_drv_unsupported_opt_for_target)
+        << A->getAsString(Args) << Triple.getTriple();
+
   // First argument is one of "platform" which starts with the signing-schema
   // for the os part of the target triple (for supported OS) or bare-metal. Or
   // the first argument is custom starts with the minimum viable pauthabi
@@ -1442,8 +1456,6 @@ static bool CollectAArch64PAuthABIOptions(const ToolChain &TC,
   // both keys, bare-metal can restrict the signing-schema to just one key.
   uint64_t AKey = 1;
   uint64_t BKey = 1;
-
-  const Driver &D = TC.getDriver();
 
   SmallVector<StringRef, 8> Opts;
   Val.split(Opts, "+");
