@@ -253,6 +253,12 @@ struct PointerAuthOptions {
 
   /// The ABI for Objective-C class_ro_t pointers.
   PointerAuthSchema ObjCClassROPointers;
+
+  /// The Platform Id to record in the ELF marking describing schema.
+  uint64_t ELFPlatformId;
+
+  /// The Version number to record in the ELF marking describing schema.
+  uint64_t ELFVersionNum;
 };
 
 } // end namespace clang

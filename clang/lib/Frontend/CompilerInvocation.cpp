@@ -1454,69 +1454,83 @@ void CompilerInvocation::setDefaultPointerAuthOptions(
     PointerAuthOptions &Opts, const LangOptions &LangOpts,
     const llvm::Triple &Triple) {
   assert(Triple.getArch() == llvm::Triple::aarch64);
+
+  auto KeyMap = [&LangOpts](PointerAuthSchema::ARM8_3Key InKey) {
+    // Signing schema may restrict the keys to all A or all B.
+    using Key = PointerAuthSchema::ARM8_3Key;
+    assert(!(LangOpts.PointerAuthNoAKey && LangOpts.PointerAuthNoBKey));
+    Key AKeyOnly[] = {Key::ASIA, Key::ASIA, Key::ASDA, Key::ASDA};
+    Key BKeyOnly[] = {Key::ASIB, Key::ASIB, Key::ASDB, Key::ASDB};
+    if (LangOpts.PointerAuthNoAKey)
+      return BKeyOnly[static_cast<unsigned>(InKey)];
+    else if (LangOpts.PointerAuthNoBKey)
+      return AKeyOnly[static_cast<unsigned>(InKey)];
+    return InKey;
+  };
+
   if (LangOpts.PointerAuthCalls) {
     using Key = PointerAuthSchema::ARM8_3Key;
     using Discrimination = PointerAuthSchema::Discrimination;
     // If you change anything here, be sure to update <ptrauth.h>.
     Opts.FunctionPointers = PointerAuthSchema(
-        Key::ASIA, false,
+        KeyMap(Key::ASIA), false,
         LangOpts.PointerAuthFunctionTypeDiscrimination ? Discrimination::Type
                                                        : Discrimination::None);
 
     Opts.CXXVTablePointers = PointerAuthSchema(
-        Key::ASDA, LangOpts.PointerAuthVTPtrAddressDiscrimination,
+        KeyMap(Key::ASDA), LangOpts.PointerAuthVTPtrAddressDiscrimination,
         LangOpts.PointerAuthVTPtrTypeDiscrimination ? Discrimination::Type
                                                     : Discrimination::None);
 
     if (LangOpts.PointerAuthTypeInfoVTPtrDiscrimination)
       Opts.CXXTypeInfoVTablePointer =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(KeyMap(Key::ASDA), true, Discrimination::Constant,
                             StdTypeInfoVTablePointerConstantDiscrimination);
     else
       Opts.CXXTypeInfoVTablePointer =
-          PointerAuthSchema(Key::ASDA, false, Discrimination::None);
+          PointerAuthSchema(KeyMap(Key::ASDA), false, Discrimination::None);
 
     Opts.CXXVTTVTablePointers =
-        PointerAuthSchema(Key::ASDA, false, Discrimination::None);
+        PointerAuthSchema(KeyMap(Key::ASDA), false, Discrimination::None);
     Opts.CXXVirtualFunctionPointers = Opts.CXXVirtualVariadicFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::Decl);
+        PointerAuthSchema(KeyMap(Key::ASIA), true, Discrimination::Decl);
     Opts.CXXMemberFunctionPointers =
-        PointerAuthSchema(Key::ASIA, false, Discrimination::Type);
+        PointerAuthSchema(KeyMap(Key::ASIA), false, Discrimination::Type);
 
     if (LangOpts.PointerAuthInitFini) {
       Opts.InitFiniPointers = PointerAuthSchema(
-          Key::ASIA, LangOpts.PointerAuthInitFiniAddressDiscrimination,
+          KeyMap(Key::ASIA), LangOpts.PointerAuthInitFiniAddressDiscrimination,
           Discrimination::Constant, InitFiniPointerConstantDiscriminator);
     }
 
     Opts.BlockInvocationFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(KeyMap(Key::ASIA), true, Discrimination::None);
     Opts.BlockHelperFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(KeyMap(Key::ASIA), true, Discrimination::None);
     Opts.BlockByrefHelperFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(KeyMap(Key::ASIA), true, Discrimination::None);
     if (LangOpts.PointerAuthBlockDescriptorPointers)
       Opts.BlockDescriptorPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(KeyMap(Key::ASDA), true, Discrimination::Constant,
                             BlockDescriptorConstantDiscriminator);
 
     Opts.ObjCMethodListFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(KeyMap(Key::ASIA), true, Discrimination::None);
     Opts.ObjCMethodListPointer =
-        PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+        PointerAuthSchema(KeyMap(Key::ASDA), true, Discrimination::Constant,
                           MethodListPointerConstantDiscriminator);
     if (LangOpts.PointerAuthObjcIsa) {
       Opts.ObjCIsaPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(KeyMap(Key::ASDA), true, Discrimination::Constant,
                             IsaPointerConstantDiscriminator);
       Opts.ObjCSuperPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(KeyMap(Key::ASDA), true, Discrimination::Constant,
                             SuperPointerConstantDiscriminator);
     }
 
     if (LangOpts.PointerAuthObjcClassROPointers)
       Opts.ObjCClassROPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(KeyMap(Key::ASDA), true, Discrimination::Constant,
                             ClassROConstantDiscriminator);
   }
   Opts.ReturnAddresses = LangOpts.PointerAuthReturns;
@@ -1535,6 +1549,24 @@ static void parsePointerAuthOptions(PointerAuthOptions &Opts,
     return;
 
   CompilerInvocation::setDefaultPointerAuthOptions(Opts, LangOpts, Triple);
+}
+
+static void parsePointerAuthELFPlatformAndVersionArgs(PointerAuthOptions &Opts,
+                                                      ArgList &Args,
+                                                      DiagnosticsEngine &Diags) {
+  if (const auto *Arg = Args.getLastArg(OPT_pauthabi_platform_EQ)) {
+    StringRef S = Arg->getValue();
+    if (S.getAsInteger(0, Opts.ELFPlatformId))
+      Diags.Report(diag::err_drv_invalid_value) << Arg->getAsString(Args) << S;
+  } else
+    Opts.ELFPlatformId = 0;
+
+  if (const auto *Arg = Args.getLastArg(OPT_pauthabi_version_EQ)) {
+    StringRef S = Arg->getValue();
+    if (S.getAsInteger(0, Opts.ELFVersionNum))
+      Diags.Report(diag::err_drv_invalid_value) << Arg->getAsString(Args) << S;
+  } else
+    Opts.ELFVersionNum = 0;
 }
 
 void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
@@ -2314,8 +2346,11 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
 
   Opts.EmitVersionIdentMetadata = Args.hasFlag(OPT_Qy, OPT_Qn, true);
 
-  if (!LangOpts->CUDAIsDevice)
+  if (!LangOpts->CUDAIsDevice) {
+    if (T.isOSBinFormatELF())
+      parsePointerAuthELFPlatformAndVersionArgs(Opts.PointerAuth, Args, Diags);
     parsePointerAuthOptions(Opts.PointerAuth, *LangOpts, T, Diags);
+  }
 
   if (Args.hasArg(options::OPT_ffinite_loops))
     Opts.FiniteLoops = CodeGenOptions::FiniteLoopsKind::Always;
@@ -3615,6 +3650,10 @@ static void GeneratePointerAuthArgs(const LangOptions &Opts,
     GenerateArg(Consumer, OPT_fptrauth_objc_class_ro);
   if (Opts.PointerAuthBlockDescriptorPointers)
     GenerateArg(Consumer, OPT_fptrauth_block_descriptor_pointers);
+  if (Opts.PointerAuthNoAKey)
+    GenerateArg(Consumer, OPT_fptrauth_noakey);
+  if (Opts.PointerAuthNoBKey)
+    GenerateArg(Consumer, OPT_fptrauth_nobkey);
 }
 
 static void ParsePointerAuthArgs(LangOptions &Opts, ArgList &Args,
@@ -3648,6 +3687,13 @@ static void ParsePointerAuthArgs(LangOptions &Opts, ArgList &Args,
   if (Opts.PointerAuthObjcInterfaceSel)
     Opts.PointerAuthObjcInterfaceSelKey =
         static_cast<unsigned>(PointerAuthSchema::ARM8_3Key::ASDB);
+
+  Opts.PointerAuthNoAKey = Args.hasArg(OPT_fptrauth_noakey);
+  Opts.PointerAuthNoBKey = Args.hasArg(OPT_fptrauth_nobkey);
+  if (Opts.PointerAuthNoAKey && Opts.PointerAuthNoBKey)
+    Diags.Report(diag::err_drv_argument_not_allowed_with)
+          << "-fptrauth_noakey" << "-fptrauth_nobkey";
+
 }
 
 /// Check if input file kind and language standard are compatible.

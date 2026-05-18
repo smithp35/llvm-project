@@ -142,6 +142,9 @@ LANGOPT(PointerAuthObjcClassROPointers, 1, 0, Benign, "class_ro_t pointer authen
 
 LANGOPT(PointerAuthBlockDescriptorPointers, 1, 0, NotCompatible, "enable signed block descriptors")
 
+LANGOPT(PointerAuthNoAKey, 1, 0, NotCompatible, "disable the A family of keys, signing schema must use all B keys")
+LANGOPT(PointerAuthNoBKey, 1, 0, NotCompatible, "disable the B family of keys, signing schema must use all A keys")
+
 LANGOPT(DoubleSquareBracketAttributes, 1, 0, NotCompatible, "'[[]]' attributes extension for all language standard modes")
 LANGOPT(ExperimentalLateParseAttributes, 1, 0, NotCompatible, "experimental late parsing of attributes")
 

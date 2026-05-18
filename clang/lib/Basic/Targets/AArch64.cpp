@@ -13,6 +13,7 @@
 #include "AArch64.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/PointerAuthOptions.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/APSInt.h"
@@ -785,6 +786,28 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   if (Opts.VScaleMin && Opts.VScaleMin == Opts.VScaleMax) {
     Builder.defineMacro("__ARM_FEATURE_SVE_BITS", Twine(Opts.VScaleMin * 128));
   }
+
+  // Used to defined the ptrauth_key_process* keys in ptrauth.h.
+  auto MapKey = [&Opts](PointerAuthSchema::ARM8_3Key InKey) {
+    assert(!(Opts.PointerAuthNoAKey && Opts.PointerAuthNoBKey));
+    const char* AKeyOnly[] = { "ptrauth_key_asia", "ptrauth_key_asia", "ptrauth_key_asda", "ptrauth_key_asda" };
+    const char* BKeyOnly[] = { "ptrauth_key_asib", "ptrauth_key_asib", "ptrauth_key_asdb", "ptrauth_key_asdb" };
+    const char* Direct[] = { "ptrauth_key_asia", "ptrauth_key_asib", "ptrauth_key_asda", "ptrauth_key_asdb" };
+    if (Opts.PointerAuthNoAKey)
+      return BKeyOnly[static_cast<unsigned>(InKey)];
+    else if (Opts.PointerAuthNoBKey)
+      return AKeyOnly[static_cast<unsigned>(InKey)];
+    else
+      return Direct[static_cast<unsigned>(InKey)];
+  };
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_CODE",
+                      MapKey(PointerAuthSchema::ARM8_3Key::ASIA));
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE",
+                      MapKey(PointerAuthSchema::ARM8_3Key::ASIB));
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_DATA",
+                      MapKey(PointerAuthSchema::ARM8_3Key::ASDA));
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_DATA",
+                      MapKey(PointerAuthSchema::ARM8_3Key::ASDB));
 }
 
 llvm::SmallVector<Builtin::InfosShard>
