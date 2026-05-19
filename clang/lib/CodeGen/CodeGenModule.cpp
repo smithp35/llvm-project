@@ -1534,65 +1534,71 @@ void CodeGenModule::Release() {
     if (LangOpts.isSignReturnAddressScopeAll())
       getModule().addModuleFlag(llvm::Module::Min, "sign-return-address-all",
                                 2);
+
     if (!LangOpts.isSignReturnAddressWithAKey())
       getModule().addModuleFlag(llvm::Module::Min,
                                 "sign-return-address-with-bkey", 2);
 
-    if (LangOpts.PointerAuthELFGOT)
-      getModule().addModuleFlag(llvm::Module::Error, "ptrauth-elf-got", 1);
+    if (T.isAArch64()) {
+      // PAuthABI is AArch64 only.
 
-    if (getTriple().isOSLinux() || getTriple().isOSUnknown()) {
-      if (LangOpts.PointerAuthCalls)
-        getModule().addModuleFlag(llvm::Module::Error,
-                                  "ptrauth-sign-personality", 1);
-      assert(getTriple().isOSBinFormatELF());
-      using namespace llvm::ELF;
+      if (LangOpts.PointerAuthELFGOT)
+        getModule().addModuleFlag(llvm::Module::Error, "ptrauth-elf-got", 1);
 
-      uint64_t PAuthABIPlatform = AARCH64_PAUTH_PLATFORM_LLVM_LINUX;
-      uint64_t PAuthABIVersion = 0;
-      // The PAuthABI Profile options will have set these directly.
-      if (CodeGenOpts.PointerAuth.ELFPlatformId != 0)
-        PAuthABIPlatform = CodeGenOpts.PointerAuth.ELFPlatformId;
-      if (CodeGenOpts.PointerAuth.ELFVersionNum != 0)
-        PAuthABIVersion = CodeGenOpts.PointerAuth.ELFVersionNum;
-      else {
-        // Derive PAuthABIVersion.
-        PAuthABIVersion =
-            (LangOpts.PointerAuthIntrinsics
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INTRINSICS) |
-            (LangOpts.PointerAuthCalls
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_CALLS) |
-            (LangOpts.PointerAuthReturns
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_RETURNS) |
-            (LangOpts.PointerAuthAuthTraps
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_AUTHTRAPS) |
-            (LangOpts.PointerAuthVTPtrAddressDiscrimination
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_VPTRADDRDISCR) |
-            (LangOpts.PointerAuthVTPtrTypeDiscrimination
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_VPTRTYPEDISCR) |
-            (LangOpts.PointerAuthInitFini
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INITFINI) |
-            (LangOpts.PointerAuthInitFiniAddressDiscrimination
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INITFINIADDRDISC) |
-            (LangOpts.PointerAuthELFGOT
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_GOT) |
-            (LangOpts.PointerAuthIndirectGotos
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_GOTOS) |
-            (LangOpts.PointerAuthTypeInfoVTPtrDiscrimination
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_TYPEINFOVPTRDISCR) |
-            (LangOpts.PointerAuthFunctionTypeDiscrimination
-             << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_FPTRTYPEDISCR);
-        static_assert(AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_FPTRTYPEDISCR ==
-                          AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_LAST,
-                      "Update when new enum items are defined");
-      }
-      if (PAuthABIVersion != 0) {
-        getModule().addModuleFlag(llvm::Module::Error,
-                                  "aarch64-elf-pauthabi-platform",
-                                  PAuthABIPlatform);
-        getModule().addModuleFlag(llvm::Module::Error,
-                                  "aarch64-elf-pauthabi-version",
-                                  PAuthABIVersion);
+      if (getTriple().isOSLinux() || getTriple().isOSUnknown()) {
+        if (LangOpts.PointerAuthCalls)
+          getModule().addModuleFlag(llvm::Module::Error,
+                                    "ptrauth-sign-personality", 1);
+        assert(getTriple().isOSBinFormatELF());
+        using namespace llvm::ELF;
+
+        uint64_t PAuthABIPlatform = AARCH64_PAUTH_PLATFORM_LLVM_LINUX;
+        uint64_t PAuthABIVersion = 0;
+        // The PAuthABI Profile options will have set these directly.
+        if (CodeGenOpts.PointerAuth.ELFPlatformId != 0)
+          PAuthABIPlatform = CodeGenOpts.PointerAuth.ELFPlatformId;
+        if (CodeGenOpts.PointerAuth.ELFVersionNum != 0)
+          PAuthABIVersion = CodeGenOpts.PointerAuth.ELFVersionNum;
+        else {
+          // Derive PAuthABIVersion.
+          PAuthABIVersion =
+              (LangOpts.PointerAuthIntrinsics
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INTRINSICS) |
+              (LangOpts.PointerAuthCalls
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_CALLS) |
+              (LangOpts.PointerAuthReturns
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_RETURNS) |
+              (LangOpts.PointerAuthAuthTraps
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_AUTHTRAPS) |
+              (LangOpts.PointerAuthVTPtrAddressDiscrimination
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_VPTRADDRDISCR) |
+              (LangOpts.PointerAuthVTPtrTypeDiscrimination
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_VPTRTYPEDISCR) |
+              (LangOpts.PointerAuthInitFini
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INITFINI) |
+              (LangOpts.PointerAuthInitFiniAddressDiscrimination
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INITFINIADDRDISC) |
+              (LangOpts.PointerAuthELFGOT
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_GOT) |
+              (LangOpts.PointerAuthIndirectGotos
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_GOTOS) |
+              (LangOpts.PointerAuthTypeInfoVTPtrDiscrimination
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_TYPEINFOVPTRDISCR) |
+              (LangOpts.PointerAuthFunctionTypeDiscrimination
+               << AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_FPTRTYPEDISCR);
+          static_assert(
+              AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_FPTRTYPEDISCR ==
+                  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_LAST,
+              "Update when new enum items are defined");
+        }
+        if (PAuthABIVersion != 0) {
+          getModule().addModuleFlag(llvm::Module::Error,
+                                    "aarch64-elf-pauthabi-platform",
+                                    PAuthABIPlatform);
+          getModule().addModuleFlag(llvm::Module::Error,
+                                    "aarch64-elf-pauthabi-version",
+                                    PAuthABIVersion);
+        }
       }
     }
   }
