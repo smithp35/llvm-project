@@ -16,9 +16,13 @@
 // RUN: not %clang -### -c --target=aarch64 -mpauthabi-profile=none %s 2>&1 | FileCheck %s --check-prefix ERR_UNSUP
 // ERR_UNSUP: clang: error: unsupported option '-mpauthabi-profile=' for target 'aarch64'
 
+//// The -mpauthabi-profile requires FEAT_PAUTH (armv8.3-a, or +pauth)
+// RUN: not %clang -### -c --target=aarch64-linux-gnu -mpauthabi-profile=platform %s 2>&1 | FileCheck %s --check-prefix ERR_UNSUPFEAT
+// ERR_UNSUPFEAT: clang: error: unsupported option '-mpauthabi-profile=platform' for target 'aarch64-unknown-linux-gnu'
+
 //// Default signing-schema common to all profiles, expressed with -fptrauth options.
 // RUN: %clang -### -c --target=aarch64-none-elf -march=armv8.3-a -mpauthabi-profile=platform %s 2>&1 | FileCheck %s --check-prefix COMMON
-// RUN: %clang -### -c --target=aarch64-none-linux -mpauthabi-profile=platform %s 2>&1 | FileCheck %s --check-prefix COMMON
+// RUN: %clang -### -c --target=aarch64-none-linux -march=armv8.3-a -mpauthabi-profile=platform %s 2>&1 | FileCheck %s --check-prefix COMMON
 // COMMON: "-cc1"{{.*}} "-fptrauth-intrinsics" "-fptrauth-calls" "-fptrauth-returns" "-fptrauth-auth-traps" "-fptrauth-vtable-pointer-address-discrimination" "-fptrauth-vtable-pointer-type-discrimination" "-fptrauth-type-info-vtable-pointer-discrimination" "-fptrauth-indirect-gotos" "-fptrauth-init-fini" "-fptrauth-init-fini-address-discrimination" "-faarch64-jump-table-hardening" {{.*}}
 // COMMON-NOT: "-fptrauth-function-pointer-type-discrimination"
 // COMMON-NOT: "-fptrauth-noakey"
