@@ -164,6 +164,8 @@ FEATURE(ptrauth_indirect_gotos, LangOpts.PointerAuthIndirectGotos)
 FEATURE(ptrauth_init_fini, LangOpts.PointerAuthInitFini)
 FEATURE(ptrauth_init_fini_address_discrimination, LangOpts.PointerAuthInitFiniAddressDiscrimination)
 FEATURE(ptrauth_elf_got, LangOpts.PointerAuthELFGOT)
+FEATURE(ptrauth_noakey, LangOpts.PointerAuthNoAKey)
+FEATURE(ptrauth_nobkey, LangOpts.PointerAuthNoBKey)
 
 FEATURE(ptrauth_objc_isa, LangOpts.PointerAuthObjcIsa)
 FEATURE(ptrauth_objc_interface_sel, LangOpts.PointerAuthObjcInterfaceSel)
