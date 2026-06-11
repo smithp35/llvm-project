@@ -2,6 +2,8 @@
 // RUN:   -fptrauth-vtable-pointer-address-discrimination -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,DARWIN
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -fno-rtti -fptrauth-vtable-pointer-type-discrimination \
 // RUN:   -fptrauth-vtable-pointer-address-discrimination -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,ELF
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fno-rtti -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination -emit-llvm -o - %s | FileCheck %s --check-prefixes=CHECK,ELF
 
 // CHECK: %struct.Base1 = type { ptr }
 // CHECK: %struct.Base2 = type { ptr }

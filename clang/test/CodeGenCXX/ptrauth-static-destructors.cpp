@@ -10,6 +10,12 @@
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - \
 // RUN:    -fno-use-cxa-atexit | FileCheck %s --check-prefixes=ATEXIT,ATEXIT_ELF
 
+// RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - \
+// RUN:    -fno-use-cxa-atexit | FileCheck %s --check-prefixes=ATEXIT
+
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s -o - \
+// RUN:  | FileCheck %s --check-prefix=CXAATEXIT
+
 // RUN: %clang_cc1 -triple arm64-apple-ios -fptrauth-calls -emit-llvm -std=c++11 %s \
 // RUN:  -fptrauth-function-pointer-type-discrimination  -o - | FileCheck %s --check-prefix=CXAATEXIT_DISC
 
@@ -23,6 +29,13 @@
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - \
 // RUN:   -fptrauth-function-pointer-type-discrimination -fno-use-cxa-atexit \
 // RUN:  | FileCheck %s --check-prefixes=ATEXIT_DISC,ATEXIT_DISC_ELF
+
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s \
+// RUN:  -fptrauth-function-pointer-type-discrimination  -o - | FileCheck %s --check-prefix=CXAATEXIT_DISC
+
+// RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - \
+// RUN:   -fptrauth-function-pointer-type-discrimination -fno-use-cxa-atexit \
+// RUN:  | FileCheck %s --check-prefixes=ATEXIT_DISC
 
 class Foo {
  public:
