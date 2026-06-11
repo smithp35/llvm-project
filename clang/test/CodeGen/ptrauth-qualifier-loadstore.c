@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple arm64-apple-ios -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck %s
 // RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck %s
+// RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck %s
 
 #define IQ __ptrauth(1,0,50)
 #define AQ __ptrauth(1,1,50)

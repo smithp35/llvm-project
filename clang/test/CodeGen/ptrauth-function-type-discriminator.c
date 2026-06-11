@@ -14,6 +14,14 @@
 // RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-linux-gnu  -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -emit-llvm -x ast -o - %t.ast | FileCheck --check-prefixes=CHECK,CHECKC %s
 
+// RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf  -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -disable-llvm-passes -emit-llvm %s       -o- | FileCheck --check-prefixes=CHECK,CHECKC %s
+// RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf  -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -disable-llvm-passes -emit-llvm -xc++ %s -o- | FileCheck --check-prefix=CHECK %s
+// RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf  -fptrauth-calls -fptrauth-intrinsics -emit-pch %s -o %t.ast
+// RUN: %clang_cc1 -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf  -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -emit-llvm -x ast -o - %t.ast | FileCheck --check-prefixes=CHECK,CHECKC %s
+
 #ifdef __cplusplus
 extern "C" {
 #endif

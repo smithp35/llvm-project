@@ -4,6 +4,9 @@
 // RUN: %clang_cc1 -triple aarch64-linux-gnu  -fsanitize=vptr -O0 -emit-llvm -o - %s | FileCheck %s
 // RUN: %clang_cc1 -triple aarch64-linux-gnu  -fsanitize=vptr -O2 -disable-llvm-passes -emit-llvm -o - %s | FileCheck %s
 
+// RUN: %clang_cc1 -triple aarch64-none-elf  -fsanitize=vptr -O0 -emit-llvm -o - %s | FileCheck %s
+// RUN: %clang_cc1 -triple aarch64-none-elf  -fsanitize=vptr -O2 -disable-llvm-passes -emit-llvm -o - %s | FileCheck %s
+
 struct S {
   S() {}
   ~S() {}
