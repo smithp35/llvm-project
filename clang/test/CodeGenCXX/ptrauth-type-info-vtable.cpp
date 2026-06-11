@@ -10,6 +10,12 @@
 // RUN:   -fptrauth-vtable-pointer-address-discrimination \
 // RUN:   %s -emit-llvm -o - | FileCheck %s --check-prefixes=CHECK,NODISC
 
+// RUN: %clang_cc1 -DENABLE_TID=0 -I%S -std=c++11 -triple=aarch64-none-elf \
+// RUN:   -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   %s -emit-llvm -o - | FileCheck %s --check-prefixes=CHECK,NODISC
+
 // RUN: %clang_cc1 -DENABLE_TID=1 -I%S -std=c++11 -triple=arm64e-apple-darwin \
 // RUN:   -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-type-discrimination \
@@ -18,6 +24,13 @@
 // RUN:   %s -emit-llvm -o - | FileCheck %s --check-prefixes=CHECK,DISC
 
 // RUN: %clang_cc1 -DENABLE_TID=1 -I%S -std=c++11 -triple=aarch64-linux-gnu \
+// RUN:   -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -fptrauth-type-info-vtable-pointer-discrimination \
+// RUN:   %s -emit-llvm -o - | FileCheck %s --check-prefixes=CHECK,DISC
+
+// RUN: %clang_cc1 -DENABLE_TID=1 -I%S -std=c++11 -triple=aarch64-none-elf \
 // RUN:   -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-type-discrimination \
 // RUN:   -fptrauth-vtable-pointer-address-discrimination \

@@ -2,6 +2,8 @@
 // RUN:   -fptrauth-vtable-pointer-type-discrimination -emit-llvm -O0 -o - | FileCheck --check-prefixes=CHECK,DARWIN %s
 // RUN: %clang_cc1 %s -x c++ -std=c++11 -triple aarch64-linux-gnu -disable-llvm-passes -fptrauth-intrinsics -fptrauth-calls \
 // RUN:   -fptrauth-vtable-pointer-type-discrimination -emit-llvm -O0 -o - | FileCheck --check-prefixes=CHECK,ELF %s
+// RUN: %clang_cc1 %s -x c++ -std=c++11 -triple aarch64-none-elf -disable-llvm-passes -fptrauth-intrinsics -fptrauth-calls \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination -emit-llvm -O0 -o - | FileCheck --check-prefixes=CHECK,ELF %s
 
 // The actual vtable construction
 

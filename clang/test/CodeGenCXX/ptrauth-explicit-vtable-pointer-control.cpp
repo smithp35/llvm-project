@@ -30,6 +30,22 @@
 // RUN:   -fptrauth-vtable-pointer-address-discrimination \
 // RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH,LINUX %s
 
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,NODISC %s
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,TYPE %s
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,ADDR %s
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH %s
+
 #include <ptrauth.h>
 
 namespace test1 {

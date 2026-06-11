@@ -1,5 +1,6 @@
 // RUN: %clang_cc1 %s -I%S -triple=arm64-apple-ios   -fptrauth-calls -std=c++11 -emit-llvm -o - | FileCheck --check-prefix=DARWIN %s
 // RUN: %clang_cc1 %s -I%S -triple=aarch64-linux-gnu -fptrauth-calls -std=c++11 -emit-llvm -o - | FileCheck --check-prefix=ELF %s
+// RUN: %clang_cc1 %s -I%S -triple=aarch64-none-elf -fptrauth-calls -std=c++11 -emit-llvm -o - | FileCheck --check-prefix=ELF %s
 
 #include <typeinfo>
 
