@@ -1626,7 +1626,8 @@ bool Sema::checkConstantPointerAuthKey(Expr *Arg, unsigned &Result) {
   }
 
   // Ask the target to validate the key parameter.
-  if (!Context.getTargetInfo().validatePointerAuthKey(*KeyValue)) {
+  if (!Context.getTargetInfo().validatePointerAuthKey(*KeyValue,
+                                                      getLangOpts())) {
     llvm::SmallString<32> Value;
     {
       llvm::raw_svector_ostream Str(Value);

@@ -1767,8 +1767,12 @@ int AArch64TargetInfo::getEHDataRegisterNumber(unsigned RegNo) const {
   return -1;
 }
 
-bool AArch64TargetInfo::validatePointerAuthKey(
-    const llvm::APSInt &value) const {
+bool AArch64TargetInfo::validatePointerAuthKey(const llvm::APSInt &value,
+                                               const LangOptions &LO) const {
+  if (LO.PointerAuthNoAKey)
+    return value == 1 || value == 3;
+  else if (LO.PointerAuthNoBKey)
+    return value == 0 || value == 2;
   return 0 <= value && value <= 3;
 }
 

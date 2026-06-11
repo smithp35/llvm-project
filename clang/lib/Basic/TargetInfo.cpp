@@ -1002,7 +1002,8 @@ bool TargetInfo::validateInputConstraint(
   return true;
 }
 
-bool TargetInfo::validatePointerAuthKey(const llvm::APSInt &value) const {
+bool TargetInfo::validatePointerAuthKey(const llvm::APSInt &value,
+                                        const LangOptions &LO) const {
   return false;
 }
 
