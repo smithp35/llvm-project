@@ -18,7 +18,7 @@
 // RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -emit-llvm -std=c++11 -O1 -disable-llvm-passes -stack-protector 1 -o - %s | FileCheck %s -check-prefix=STACK-PROT
 // RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -emit-llvm -std=c++11 -O1 -disable-llvm-passes -stack-protector 2 -o - %s | FileCheck %s -check-prefix=STACK-PROT
 // RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -emit-llvm -std=c++11 -O1 -disable-llvm-passes -stack-protector 3 -o - %s | FileCheck %s -check-prefix=STACK-PROT
-
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -fptrauth-noakey -emit-llvm -std=c++11 -O1 -disable-llvm-passes -o - %s | FileCheck -check-prefixes=CHECKNOA -DKEY=1 %s
 
 // CHECK: @gmethod0 = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base011nonvirtual0Ev, i32 0, i64 [[TYPEDISC1:35591]]) to i64), i64 0 }, align 8
 // CHECK: @gmethod1 = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN8Derived011nonvirtual5Ev, i32 0, i64 [[TYPEDISC0:22163]]) to i64), i64 0 }, align 8
@@ -37,6 +37,24 @@
 // CHECK-SAME: ptr ptrauth (ptr @_ZN5Base08virtual1Ev, i32 0, i64 55600, ptr getelementptr inbounds ({ [5 x ptr] }, ptr @_ZTV5Base0, i32 0, i32 0, i32 2)),
 // CHECK-SAME: ptr ptrauth (ptr @_ZN5Base08virtual3Ev, i32 0, i64 53007, ptr getelementptr inbounds ({ [5 x ptr] }, ptr @_ZTV5Base0, i32 0, i32 0, i32 3)),
 // CHECK-SAME: ptr ptrauth (ptr @_ZN5Base016virtual_variadicEiz, i32 0, i64 7464, ptr getelementptr inbounds ({ [5 x ptr] }, ptr @_ZTV5Base0, i32 0, i32 0, i32 4))] }, align 8
+
+// CHECKNOA: @gmethod0 = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base011nonvirtual0Ev, i32 [[KEY]], i64 [[TYPEDISC1:35591]]) to i64), i64 0 }, align 8
+// CHECKNOA: @gmethod1 = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN8Derived011nonvirtual5Ev, i32 [[KEY]], i64 [[TYPEDISC0:22163]]) to i64), i64 0 }, align 8
+// CHECKNOA: @gmethod2 = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base08virtual1Ev_vfpthunk_, i32 [[KEY]], i64 [[TYPEDISC0]]) to i64), i64 0 }, align 8
+
+// CHECKNOA: @__const._Z13testArrayInitv.p0 = private unnamed_addr constant [1 x { i64, i64 }] [{ i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base011nonvirtual0Ev, i32 [[KEY]], i64 35591) to i64), i64 0 }], align 8
+// CHECKNOA: @__const._Z13testArrayInitv.p1 = private unnamed_addr constant [1 x { i64, i64 }] [{ i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base08virtual1Ev_vfpthunk_, i32 [[KEY]], i64 35591) to i64), i64 0 }], align 8
+// CHECKNOA: @__const._Z13testArrayInitv.c0 = private unnamed_addr constant %struct.Class0 { { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base011nonvirtual0Ev, i32 [[KEY]], i64 35591) to i64), i64 0 } }, align 8
+// CHECKNOA: @__const._Z13testArrayInitv.c1 = private unnamed_addr constant %struct.Class0 { { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN5Base08virtual1Ev_vfpthunk_, i32 [[KEY]], i64 35591) to i64), i64 0 } }, align 8
+
+// CHECKNOA: @_ZN22testNoexceptConversion6mfptr1E = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN22testNoexceptConversion1S19nonvirtual_noexceptEv, i32 [[KEY]], i64 [[TYPEDISC3:.*]]) to i64), i64 0 },
+// CHECKNOA: @_ZN22testNoexceptConversion6mfptr2E = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN22testNoexceptConversion1S16virtual_noexceptEv_vfpthunk_, i32 [[KEY]], i64 [[TYPEDISC3]]) to i64), i64 0 },
+// CHECKNOA: @_ZN22testNoexceptConversion15mfptr3_noexceptE = global { i64, i64 } { i64 ptrtoint (ptr ptrauth (ptr @_ZN22testNoexceptConversion1S19nonvirtual_noexceptEv, i32 [[KEY]], i64 [[TYPEDISC3]]) to i64), i64 0 },
+
+// CHECKNOA: @_ZTV5Base0 = constant { [5 x ptr] } { [5 x ptr] [ptr null, ptr @_ZTI5Base0,
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN5Base08virtual1Ev, i32 [[KEY]], i64 55600, ptr getelementptr inbounds ({ [5 x ptr] }, ptr @_ZTV5Base0, i32 0, i32 0, i32 2)),
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN5Base08virtual3Ev, i32 [[KEY]], i64 53007, ptr getelementptr inbounds ({ [5 x ptr] }, ptr @_ZTV5Base0, i32 0, i32 0, i32 3)),
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN5Base016virtual_variadicEiz, i32 [[KEY]], i64 7464, ptr getelementptr inbounds ({ [5 x ptr] }, ptr @_ZTV5Base0, i32 0, i32 0, i32 4))] }, align 8
 
 typedef __SIZE_TYPE__ size_t;
 

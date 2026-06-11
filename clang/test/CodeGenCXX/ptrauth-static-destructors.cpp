@@ -16,6 +16,9 @@
 // RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s -o - \
 // RUN:  | FileCheck %s --check-prefix=CXAATEXIT
 
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-noakey -emit-llvm -std=c++11 %s -o - \
+// RUN:  | FileCheck %s --check-prefix=CXAATEXITB
+
 // RUN: %clang_cc1 -triple arm64-apple-ios -fptrauth-calls -emit-llvm -std=c++11 %s \
 // RUN:  -fptrauth-function-pointer-type-discrimination  -o - | FileCheck %s --check-prefix=CXAATEXIT_DISC
 
@@ -37,6 +40,9 @@
 // RUN:   -fptrauth-function-pointer-type-discrimination -fno-use-cxa-atexit \
 // RUN:  | FileCheck %s --check-prefixes=ATEXIT_DISC
 
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s \
+// RUN:  -fptrauth-function-pointer-type-discrimination -fptrauth-noakey -o - | FileCheck %s --check-prefix=CXAATEXIT_DISCB
+
 class Foo {
  public:
   ~Foo() {
@@ -48,8 +54,14 @@ Foo global;
 // CXAATEXIT: define internal void @__cxx_global_var_init()
 // CXAATEXIT:   call i32 @__cxa_atexit(ptr ptrauth (ptr @_ZN3FooD1Ev, i32 0), ptr @global, ptr @__dso_handle)
 
+// CXAATEXITB: define internal void @__cxx_global_var_init()
+// CXAATEXITB:   call i32 @__cxa_atexit(ptr ptrauth (ptr @_ZN3FooD1Ev, i32 1), ptr @global, ptr @__dso_handle)
+
 // CXAATEXIT_DISC: define internal void @__cxx_global_var_init()
 // CXAATEXIT_DISC:   call i32 @__cxa_atexit(ptr ptrauth (ptr @_ZN3FooD1Ev, i32 0, i64 10942), ptr @global, ptr @__dso_handle)
+
+// CXAATEXIT_DISCB: define internal void @__cxx_global_var_init()
+// CXAATEXIT_DISCB:   call i32 @__cxa_atexit(ptr ptrauth (ptr @_ZN3FooD1Ev, i32 1, i64 10942), ptr @global, ptr @__dso_handle)
 
 // ATEXIT: define internal void @__cxx_global_var_init()
 // ATEXIT:   %{{.*}} = call i32 @atexit(ptr ptrauth (ptr @__dtor_global, i32 0))

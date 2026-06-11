@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck --check-prefixes=CHECK,DARWIN %s
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck --check-prefixes=CHECK,ELF    %s
 // RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck --check-prefixes=CHECK,ELF    %s
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-noakey -emit-llvm -std=c++11 %s -o - | FileCheck --check-prefix=CHECKNOA %s
 
 // Check virtual function pointers in vtables are signed.
 
@@ -8,7 +9,12 @@
 
 // CHECK: @_ZTV2B1 = constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTI2B1, ptr ptrauth (ptr @_ZN2B12m0Ev, i32 0, i64 58196, ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTV2B1, i32 0, i32 0, i32 2))] }, align 8
 
+// CHECKNOA: @_ZTV2B1 = constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTI2B1, ptr ptrauth (ptr @_ZN2B12m0Ev, i32 1, i64 58196, ptr getelementptr inbounds ({ [3 x ptr] }, ptr @_ZTV2B1, i32 0, i32 0, i32 2))] }, align 8
+
+
 // CHECK: @g_B1 = global %class.B1 { ptr ptrauth (ptr getelementptr inbounds inrange(-16, 8) ({ [3 x ptr] }, ptr @_ZTV2B1, i32 0, i32 0, i32 2), i32 2) }, align 8
+
+// CHECKNOA: @g_B1 = global %class.B1 { ptr ptrauth (ptr getelementptr inbounds inrange(-16, 8) ({ [3 x ptr] }, ptr @_ZTV2B1, i32 0, i32 0, i32 2), i32 3) }, align 8
 
 // CHECK: @_ZTV2B0 = constant { [7 x ptr] } { [7 x ptr] [ptr null, ptr @_ZTI2B0,
 // CHECK-SAME: ptr ptrauth (ptr @_ZN2B02m0Ev, i32 0, i64 53119, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 2)),
@@ -16,6 +22,13 @@
 // CHECK-SAME: ptr ptrauth (ptr @_ZN2B02m2Ev, i32 0, i64 43073, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 4)),
 // CHECK-SAME: ptr ptrauth (ptr @_ZN2B0D1Ev, i32 0, i64 25525, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 5)),
 // CHECK-SAME: ptr ptrauth (ptr @_ZN2B0D0Ev, i32 0, i64 21295, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 6))] }, align 8
+
+// CHECKNOA: @_ZTV2B0 = constant { [7 x ptr] } { [7 x ptr] [ptr null, ptr @_ZTI2B0,
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN2B02m0Ev, i32 1, i64 53119, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 2)),
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN2B02m1Ev, i32 1, i64 15165, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 3)),
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN2B02m2Ev, i32 1, i64 43073, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 4)),
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN2B0D1Ev, i32 1, i64 25525, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 5)),
+// CHECKNOA-SAME: ptr ptrauth (ptr @_ZN2B0D0Ev, i32 1, i64 21295, ptr getelementptr inbounds ({ [7 x ptr] }, ptr @_ZTV2B0, i32 0, i32 0, i32 6))] }, align 8
 
 // CHECK: @_ZTV2D0 = constant { [9 x ptr] } { [9 x ptr] [ptr null, ptr @_ZTI2D0,
 // CHECK-SAME: ptr ptrauth (ptr @_ZN2D02m0Ev, i32 0, i64 53119, ptr getelementptr inbounds ({ [9 x ptr] }, ptr @_ZTV2D0, i32 0, i32 0, i32 2)),
@@ -195,6 +208,16 @@ V1::~V1() {
 // CHECK: %[[T7:[0-9]+]] = call i64 @llvm.ptrauth.sign(i64 %[[T6]], i32 2, i64 0)
 // CHECK: %[[SIGNED_VTADDR:[0-9]+]] = inttoptr i64 %[[T7]] to ptr
 // CHECK: store ptr %[[SIGNED_VTADDR]], ptr %[[THIS1]]
+
+// CHECKNOA: %[[THIS1:.*]] = load ptr, ptr %{{.*}}
+// CHECKNOA: %[[T0:[0-9]+]] = load ptr, ptr %{{.*}}
+// CHECKNOA: %[[T1:[0-9]+]] = ptrtoint ptr %[[T0]] to i64
+// CHECKNOA: %[[T2:[0-9]+]] = call i64 @llvm.ptrauth.auth(i64 %[[T1]], i32 3, i64 0)
+// CHECKNOA: %[[T3:[0-9]+]] = inttoptr i64 %[[T2]] to ptr
+// CHECKNOA: %[[T6:[0-9]+]] = ptrtoint ptr %[[T3]] to i64
+// CHECKNOA: %[[T7:[0-9]+]] = call i64 @llvm.ptrauth.sign(i64 %[[T6]], i32 3, i64 0)
+// CHECKNOA: %[[SIGNED_VTADDR:[0-9]+]] = inttoptr i64 %[[T7]] to ptr
+// CHECKNOA: store ptr %[[SIGNED_VTADDR]], ptr %[[THIS1]]
 
 // CHECK-LABEL: define{{.*}} void @_Z8testB0m0P2B0(
 // CHECK: %[[VTABLE:[a-z]+]] = load ptr, ptr %{{.*}}
