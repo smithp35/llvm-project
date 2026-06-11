@@ -1,9 +1,12 @@
 // RUN: %clang_cc1 %s       -fptrauth-function-pointer-type-discrimination -triple arm64-apple-ios13 -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,TYPE %s
 // RUN: %clang_cc1 %s       -fptrauth-function-pointer-type-discrimination -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,TYPE %s
+// RUN: %clang_cc1 %s       -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,TYPE %s
 // RUN: %clang_cc1 %s       -triple arm64-apple-ios13 -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,ZERO %s
 // RUN: %clang_cc1 %s       -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,ZERO %s
+// RUN: %clang_cc1 %s       -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,ZERO %s
 // RUN: %clang_cc1 -xc++ %s -fptrauth-function-pointer-type-discrimination -triple arm64-apple-ios13 -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,TYPE,CHECK-CXX %s
 // RUN: %clang_cc1 -xc++ %s -fptrauth-function-pointer-type-discrimination -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,TYPE,CHECK-CXX %s
+// RUN: %clang_cc1 -xc++ %s -fptrauth-function-pointer-type-discrimination -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -disable-llvm-passes -emit-llvm -o- | FileCheck --check-prefixes=CHECK,TYPE,CHECK-CXX %s
 
 #ifdef __cplusplus
 extern "C" {

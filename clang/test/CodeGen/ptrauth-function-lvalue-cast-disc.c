@@ -1,7 +1,9 @@
 // RUN: %clang_cc1 %s -triple arm64e-apple-ios13 -fptrauth-calls -fptrauth-intrinsics -emit-llvm -o- -fptrauth-function-pointer-type-discrimination | FileCheck -check-prefixes CHECK,TYPE %s
 // RUN: %clang_cc1 %s -triple aarch64-linux-gnu  -fptrauth-calls -fptrauth-intrinsics -emit-llvm -o- -fptrauth-function-pointer-type-discrimination | FileCheck -check-prefixes CHECK,TYPE %s
+// RUN: %clang_cc1 %s -triple aarch64-none-elf  -fptrauth-calls -fptrauth-intrinsics -emit-llvm -o- -fptrauth-function-pointer-type-discrimination | FileCheck -check-prefixes CHECK,TYPE %s
 // RUN: %clang_cc1 %s -triple arm64e-apple-ios13 -fptrauth-calls -fptrauth-intrinsics -emit-llvm -o- | FileCheck -check-prefixes CHECK,ZERO %s
 // RUN: %clang_cc1 %s -triple aarch64-linux-gnu  -fptrauth-calls -fptrauth-intrinsics -emit-llvm -o- | FileCheck -check-prefixes CHECK,ZERO %s
+// RUN: %clang_cc1 %s -triple aarch64-none-elf  -fptrauth-calls -fptrauth-intrinsics -emit-llvm -o- | FileCheck -check-prefixes CHECK,ZERO %s
 
 typedef void (*fptr_t)(void);
 

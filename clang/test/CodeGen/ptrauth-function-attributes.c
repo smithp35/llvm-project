@@ -1,21 +1,28 @@
 // RUN: %clang_cc1 -triple arm64-apple-ios                    -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,OFF
 // RUN: %clang_cc1 -triple arm64e-apple-ios                   -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,OFF
 // RUN: %clang_cc1 -triple aarch64-linux-gnu                  -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,OFF
+// RUN: %clang_cc1 -triple aarch64-none-elf                   -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,OFF
 
 // RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-calls  -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,CALLS
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls  -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,CALLS
+// RUN: %clang_cc1 -triple aarch64-none-elf  -fptrauth-calls  -emit-llvm %s  -o - | FileCheck %s --check-prefixes=ALL,CALLS
 
 // RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-returns -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,RETS
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-returns -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,RETS
+// RUN: %clang_cc1 -triple aarch64-none-elf   -fptrauth-returns -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,RETS
 
 // RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-auth-traps -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,TRAPS
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-auth-traps -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,TRAPS
+// RUN: %clang_cc1 -triple aarch64-none-elf  -fptrauth-auth-traps -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,TRAPS
 
 // RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-indirect-gotos -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,GOTOS
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-indirect-gotos -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,GOTOS
+// RUN: %clang_cc1 -triple aarch64-none-elf  -fptrauth-indirect-gotos -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,GOTOS
+
 
 // RUN: %clang_cc1 -triple arm64e-apple-ios  -faarch64-jump-table-hardening -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,JMPTBL
 // RUN: %clang_cc1 -triple aarch64-linux-gnu -faarch64-jump-table-hardening -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,JMPTBL
+// RUN: %clang_cc1 -triple aarch64-none-elf  -faarch64-jump-table-hardening -emit-llvm %s -o - | FileCheck %s --check-prefixes=ALL,JMPTBL
 
 // ALL: define {{(dso_local )?}}void @test() #0
 void test() {
