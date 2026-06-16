@@ -595,12 +595,19 @@ CodeGenModule::computeVTPointerAuthentication(const CXXRecordDecl *ThisClass) {
       return std::nullopt;
 
     if (ExplicitKey != VTablePointerAuthenticationAttr::DefaultKey) {
-      if (ExplicitKey == VTablePointerAuthenticationAttr::ProcessIndependent)
-        Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDA;
+      if (ExplicitKey == VTablePointerAuthenticationAttr::ProcessIndependent) {
+        if (getLangOpts().PointerAuthNoAKey)
+          Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDB;
+        else
+          Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDA;
+      }
       else {
         assert(ExplicitKey ==
                VTablePointerAuthenticationAttr::ProcessDependent);
-        Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDB;
+        if (getLangOpts().PointerAuthNoBKey)
+          Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDA;
+        else
+          Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDB;
       }
     }
 
