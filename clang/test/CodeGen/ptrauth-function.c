@@ -1,6 +1,7 @@
-// RUN: %clang_cc1 -triple arm64-apple-ios -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s
-// RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s
-// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s
+// RUN: %clang_cc1 -triple arm64-apple-ios -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s -DKEY=0
+// RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s -DKEY=0
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s -DKEY=0
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics -fptrauth-noakey -emit-llvm %s  -o - | FileCheck -check-prefix=CHECK %s -DKEY=1
 
 void test_call();
 
@@ -15,7 +16,7 @@ void test_indirect_call(void (*fp(void))) {
   // CHECK: %[[FP_ADDR:.*]] = alloca ptr, align 8
   // CHECK: store ptr %[[FP]], ptr %[[FP_ADDR]], align 8
   // CHECK: %[[V0:.*]] = load ptr, ptr %[[FP_ADDR]], align 8
-  // CHECK: %[[CALL:.*]] = call ptr %[[V0]]() [ "ptrauth"(i32 0, i64 0) ]
+  // CHECK: %[[CALL:.*]] = call ptr %[[V0]]() [ "ptrauth"(i32 [[KEY]], i64 0) ]
   fp();
 }
 
