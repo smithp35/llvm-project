@@ -1,6 +1,7 @@
-// RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck %s
-// RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck %s
-// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple arm64-apple-ios   -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck %s -DDKEY=2
+// RUN: %clang_cc1 -triple aarch64-linux-gnu -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck %s -DDKEY=2
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -emit-llvm -std=c++11 %s -o - | FileCheck %s -DDKEY=2
+// RUN: %clang_cc1 -triple aarch64-none-elf -fptrauth-calls -fptrauth-noakey -emit-llvm -std=c++11 %s -o - | FileCheck %s -DDKEY=3
 
 namespace Test1 {
   struct B1 {
@@ -27,4 +28,4 @@ namespace Test1 {
 // CHECK: %[[This:.*]] = load ptr
 // CHECK: %[[SignedVTable:.*]] = load ptr, ptr %[[This]], align 8
 // CHECK: %[[SignedVTableAsInt:.*]] = ptrtoint ptr %[[SignedVTable]] to i64
-// CHECK: %[[VTable:.*]] = call i64 @llvm.ptrauth.auth(i64 %[[SignedVTableAsInt]], i32 2, i64 0)
+// CHECK: %[[VTable:.*]] = call i64 @llvm.ptrauth.auth(i64 %[[SignedVTableAsInt]], i32 [[DKEY]], i64 0)
