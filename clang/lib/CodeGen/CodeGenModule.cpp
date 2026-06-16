@@ -1667,6 +1667,13 @@ void CodeGenModule::Release() {
       getModule().addModuleFlag(llvm::Module::Error, "ptrauth-sign-personality",
                                 LangOpts.PointerAuthCalls);
 
+      if (LangOpts.PointerAuthNoAKey)
+        getModule().addModuleFlag(llvm::Module::Error,
+                                  "ptrauth-noakey", 1);
+      if (LangOpts.PointerAuthNoBKey)
+        getModule().addModuleFlag(llvm::Module::Error,
+                                  "ptrauth-nobkey", 1);
+
       assert(getTriple().isOSBinFormatELF());
       using namespace llvm::ELF;
       assert(AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_LAST < 32);
