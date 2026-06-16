@@ -1549,6 +1549,12 @@ void CodeGenModule::Release() {
         if (LangOpts.PointerAuthCalls)
           getModule().addModuleFlag(llvm::Module::Error,
                                     "ptrauth-sign-personality", 1);
+        if (LangOpts.PointerAuthNoAKey)
+          getModule().addModuleFlag(llvm::Module::Error,
+                                    "ptrauth-noakey", 1);
+        if (LangOpts.PointerAuthNoBKey)
+          getModule().addModuleFlag(llvm::Module::Error,
+                                    "ptrauth-nobkey", 1);
         assert(getTriple().isOSBinFormatELF());
         using namespace llvm::ELF;
 
