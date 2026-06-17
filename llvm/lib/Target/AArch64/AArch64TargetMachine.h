@@ -15,6 +15,7 @@
 
 #include "AArch64InstrInfo.h"
 #include "AArch64Subtarget.h"
+#include "Utils/AArch64BaseInfo.h"
 #include "llvm/CodeGen/CodeGenTargetMachineImpl.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DataLayout.h"
@@ -96,6 +97,23 @@ public:
   /// enable globalisel at, and it wasn't enabled via CLI, we know that it must
   /// be because of an optnone function.
   bool isGlobalISelOptNone() const;
+
+  /// Returns the process-independent key which can be used to sign code
+  /// pointers. Taken from \p M: the pauthabi-keys string if present, otherwise
+  /// the key implied by the target triple.
+  AArch64PACKey::ID getProcessIndependentCodeKey(const Module &M) const;
+  /// Returns the process-independent key which can be used to sign data
+  /// pointers. Taken from \p M: the pauthabi-keys string if present, otherwise
+  /// the key implied by the target triple.
+  AArch64PACKey::ID getProcessIndependentDataKey(const Module &M) const;
+  /// Returns the process-dependent key which can be used to sign data pointers.
+  /// Taken from \p M: the pauthabi-keys string if present, otherwise the key
+  /// implied by the target triple.
+  AArch64PACKey::ID getProcessDependentCodeKey(const Module &M) const;
+  /// Returns the process-dependent key which can be used to sign data pointers.
+  /// Taken from \p M: the pauthabi-keys string if present, otherwise the key
+  /// implied by the target triple.
+  AArch64PACKey::ID getProcessDependentDataKey(const Module &M) const;
 
 private:
   bool isLittle;
