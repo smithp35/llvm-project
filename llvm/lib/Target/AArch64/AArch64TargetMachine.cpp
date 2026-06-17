@@ -132,6 +132,43 @@ void AArch64TargetMachine::reset() {
   LastSubtarget = nullptr;
 }
 
+static AArch64PACKey::ID parsePtrAuthKeys(StringRef Keys, size_t Start) {
+  if (Keys.size() != 8)
+    report_fatal_error("ptrauth-keys must be in form ixdxiydy where x and y "
+                       "are either a or b.");
+  if (auto OptKey = AArch64StringToPACKeyID(Keys.substr(Start, 2)))
+    return *OptKey;
+  report_fatal_error("unrecognized ptrauth key");
+}
+
+AArch64PACKey::ID
+AArch64TargetMachine::getProcessIndependentCodeKey(const Module &M) const {
+  if (auto *Val = dyn_cast_or_null<MDString>(M.getModuleFlag("ptrauth-keys")))
+    return parsePtrAuthKeys(Val->getString(), /* Start */ 0);
+  return AArch64PACKey::IA;
+}
+
+AArch64PACKey::ID
+AArch64TargetMachine::getProcessIndependentDataKey(const Module &M) const {
+  if (auto *Val = dyn_cast_or_null<MDString>(M.getModuleFlag("ptrauth-keys")))
+    return parsePtrAuthKeys(Val->getString(), /* Start */ 2);
+  return AArch64PACKey::DA;
+}
+
+AArch64PACKey::ID
+AArch64TargetMachine::getProcessDependentCodeKey(const Module &M) const {
+  if (auto *Val = dyn_cast_or_null<MDString>(M.getModuleFlag("ptrauth-keys")))
+    return parsePtrAuthKeys(Val->getString(), /* Start */ 4);
+  return AArch64PACKey::IB;
+}
+
+AArch64PACKey::ID
+AArch64TargetMachine::getProcessDependentDataKey(const Module &M) const {
+  if (auto *Val = dyn_cast_or_null<MDString>(M.getModuleFlag("ptrauth-keys")))
+    return parsePtrAuthKeys(Val->getString(), /* Start */ 6);
+  return AArch64PACKey::DB;
+}
+
 //===----------------------------------------------------------------------===//
 // AArch64 Lowering public interface.
 //===----------------------------------------------------------------------===//
