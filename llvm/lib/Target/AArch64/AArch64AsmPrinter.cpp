@@ -3019,6 +3019,9 @@ void AArch64AsmPrinter::LowerMOVaddrPAC(const MachineInstr &MI) {
 
       bool IsFunctionTy = GAOp.getGlobal()->getValueType()->isFunctionTy();
       auto AuthKey = IsFunctionTy ? AArch64PACKey::IA : AArch64PACKey::DA;
+      const Module&M = *MMI->getModule();
+      if (M.getModuleFlag("ptrauth-noakey"))
+        AuthKey = IsFunctionTy ? AArch64PACKey::IB : AArch64PACKey::DB;
       emitAUT(AuthKey, AArch64::X16, AArch64::X17);
 
       if (!STI->hasFPAC())
@@ -3098,6 +3101,9 @@ void AArch64AsmPrinter::LowerLOADgotAUTH(const MachineInstr &MI) {
 
   bool IsFunctionTy = GAMO.getGlobal()->getValueType()->isFunctionTy();
   auto AuthKey = IsFunctionTy ? AArch64PACKey::IA : AArch64PACKey::DA;
+  const Module&M = *MMI->getModule();
+  if (M.getModuleFlag("ptrauth-noakey"))
+    AuthKey = IsFunctionTy ? AArch64PACKey::IB : AArch64PACKey::DB;
   emitAUT(AuthKey, AuthResultReg, AArch64::X17);
 
   if (GAMO.getGlobal()->hasExternalWeakLinkage())
