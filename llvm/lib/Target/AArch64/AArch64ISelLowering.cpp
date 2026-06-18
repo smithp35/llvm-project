@@ -13137,6 +13137,8 @@ SDValue AArch64TargetLowering::LowerBRIND(SDValue Op, SelectionDAG &DAG) const {
 
   SDValue Disc = DAG.getTargetConstant(*BADisc, DL, MVT::i64);
   SDValue Key = DAG.getTargetConstant(AArch64PACKey::IA, DL, MVT::i32);
+  if (MF.getFunction().getParent()->getModuleFlag("ptrauth-noakey"))
+    Key = DAG.getTargetConstant(AArch64PACKey::IB, DL, MVT::i32);
   SDValue AddrDisc = DAG.getRegister(AArch64::XZR, MVT::i64);
 
   SDNode *BrA = DAG.getMachineNode(AArch64::BRA, DL, MVT::Other,
@@ -13175,8 +13177,10 @@ SDValue AArch64TargetLowering::LowerBlockAddress(SDValue Op,
     SDValue TargetBA = DAG.getTargetBlockAddress(BA, BAN->getValueType(0));
 
     SDValue Disc = DAG.getTargetConstant(*BADisc, DL, MVT::i64);
-
     SDValue Key = DAG.getTargetConstant(AArch64PACKey::IA, DL, MVT::i32);
+    MachineFunction &MF = DAG.getMachineFunction();
+    if (MF.getFunction().getParent()->getModuleFlag("ptrauth-noakey"))
+      Key = DAG.getTargetConstant(AArch64PACKey::IB, DL, MVT::i32);
     SDValue AddrDisc = DAG.getRegister(AArch64::XZR, MVT::i64);
 
     SDNode *MOV =

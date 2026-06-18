@@ -83,7 +83,8 @@ static SignReturnAddress GetSignReturnAddress(const Function &F) {
 
 static bool ShouldSignWithBKey(const Function &F, const AArch64Subtarget &STI) {
   if (F.hasFnAttribute("ptrauth-returns"))
-    return true;
+    // Default to BKey unless BKey disabled.
+    return !F.getParent()->getModuleFlag("fptrauth-nobkey");
   if (!F.hasFnAttribute("sign-return-address-key")) {
     if (STI.getTargetTriple().isOSWindows())
       return true;

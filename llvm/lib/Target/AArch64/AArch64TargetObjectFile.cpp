@@ -52,10 +52,13 @@ void AArch64_ELFTargetObjectFile::emitPersonalityValueImpl(
     return;
   }
   auto *TS = static_cast<AArch64TargetStreamer *>(Streamer.getTargetStreamer());
+  const Module &M = *MMI->getModule();
+  AArch64PACKey::ID Key =
+      M.getModuleFlag("ptrauth-noakey") ? AArch64PACKey::IB : AArch64PACKey::IA;
   // The value is ptrauth_string_discriminator("personality")
   constexpr uint16_t Discriminator = 0x7EAD;
   TS->emitAuthValue(MCSymbolRefExpr::create(Sym, getContext()), Discriminator,
-                    AArch64PACKey::IA, /*HasAddressDiversity=*/true);
+                    Key, /*HasAddressDiversity=*/true);
 }
 
 const MCExpr *AArch64_ELFTargetObjectFile::getIndirectSymViaGOTPCRel(
