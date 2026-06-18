@@ -867,7 +867,11 @@ LnoR2Fix:
 DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 
 #if __has_feature(ptrauth_calls)
+#if __ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE_VAL == 0
+  paciasp
+#else
   pacibsp
+#endif
 #endif
 
   stp    x0, x1,  [x0, #0x000]
@@ -918,7 +922,9 @@ DEFINE_LIBUNWIND_FUNCTION(__unw_getcontext)
 #endif
   mov    x0, #0                   // return UNW_ESUCCESS
 
-#if __has_feature(ptrauth_calls)
+#if __has_feature(ptrauth_calls) && __ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE_VAL == 0
+  retaa
+#elif __has_feature(ptrauth_calls)
   retab
 #else
   ret
@@ -947,7 +953,11 @@ DEFINE_LIBUNWIND_FUNCTION(__libunwind_Registers_arm64_za_disable)
   ret
 #else
 #if __has_feature(ptrauth_calls)
+#if __ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE_VAL == 0
+  paciasp
+#else
   pacibsp
+#endif
 #endif
   // If TPIDR2_EL0 is null, the subroutine just disables ZA.
   .inst 0xd53bd0b0 // mrs x16, TPIDR2_EL0
@@ -984,7 +994,9 @@ DEFINE_LIBUNWIND_FUNCTION(__libunwind_Registers_arm64_za_disable)
   // * Return zero (success)
   mov x0, xzr
 2:
-#if __has_feature(ptrauth_calls)
+#if __has_feature(ptrauth_calls) && __ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE_VAL == 0
+  retaa
+#elif __has_feature(ptrauth_calls)
   retab
 #else
   ret
