@@ -1507,7 +1507,13 @@ void AArch64AsmPrinter::emitXXStructor(const DataLayout &DL,
     IntegerType *Int64Ty = IntegerType::get(C, 64);
     PointerType *PtrTy = PointerType::get(C, 0);
 
-    ConstantInt *Key = ConstantInt::get(Int32Ty, AArch64PAuth::InitFiniKey);
+    AArch64PACKey::ID InitFiniKey = AArch64PAuth::InitFiniKey;
+    const Module&M = *MMI->getModule();
+    if (InitFiniKey == AArch64PACKey::IA && M.getModuleFlag("ptrauth-noakey"))
+      InitFiniKey = AArch64PACKey::IB;
+    else if (InitFiniKey == AArch64PACKey::IB && M.getModuleFlag("ptrauth-nobkey"))
+      InitFiniKey = AArch64PACKey::IA;
+    ConstantInt *Key = ConstantInt::get(Int32Ty, InitFiniKey);
     ConstantInt *IntDisc = ConstantInt::get(
         Int64Ty, AArch64PAuth::InitFiniPointerConstantDiscriminator);
     Constant *Null = ConstantPointerNull::get(PtrTy);
