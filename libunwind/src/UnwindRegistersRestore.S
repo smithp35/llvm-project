@@ -719,8 +719,13 @@ DEFINE_LIBUNWIND_FUNCTION(__libunwind_Registers_arm64_jumpto)
   // The LR is signed with its address inside the register state.  Time
   // to resign to be a regular ROP protected signed pointer
   add    x1, x0, #0x100
+#if __has_feature(ptrauth_nobkey)
+  autia  lr, x1
+  pacia  lr, x16  // signed the scratch register for sp
+#else
   autib  lr, x1
   pacib  lr, x16  // signed the scratch register for sp
+#endif
 #endif
 
   ldp    x0, x1,  [x0, #0x000]  // restore x0,x1
@@ -736,7 +741,9 @@ DEFINE_LIBUNWIND_FUNCTION(__libunwind_Registers_arm64_jumpto)
 Lnogcs:
 #endif
 
-#if __has_feature(ptrauth_calls)
+#if __has_feature(ptrauth_calls) && __has_feature(ptrauth_nobkey)
+  retaa
+#elif __has_feature(ptrauth_calls)
   retab
 #else
   ret    x30                    // jump to pc
