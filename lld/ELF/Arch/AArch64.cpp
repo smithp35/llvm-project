@@ -1235,6 +1235,7 @@ private:
     PEK_NoAuth,
     PEK_AuthHint, // use autia1716 instr for authenticated branch in PLT entry
     PEK_Auth,     // use braa instr for authenticated branch in PLT entry
+    PEK_AuthB,     // use brab instr for authenticated branch in PLT entry
   } pacEntryKind;
 };
 } // namespace
@@ -1255,9 +1256,11 @@ AArch64BtiPac::AArch64BtiPac(Ctx &ctx) : AArch64(ctx) {
   // instructions.
 
   if (ctx.arg.zPacPlt) {
-    if (ctx.aarch64PauthAbiCoreInfo && ctx.aarch64PauthAbiCoreInfo->isValid())
-      pacEntryKind = PEK_Auth;
-    else
+    if (ctx.aarch64PauthAbiCoreInfo && ctx.aarch64PauthAbiCoreInfo->isValid()) {
+      bool useBKey = ctx.aarch64PauthAbiCoreInfo->isBareMetal() &&
+                     ctx.aarch64PauthAbiCoreInfo->noAKey();
+      pacEntryKind = useBKey ? PEK_AuthB : PEK_Auth;
+    } else
       pacEntryKind = PEK_AuthHint;
   } else {
     pacEntryKind = PEK_NoAuth;
@@ -1321,6 +1324,10 @@ void AArch64BtiPac::writePlt(uint8_t *buf, const Symbol &sym,
       0x30, 0x0a, 0x1f, 0xd7, // braa x17, x16
       0x1f, 0x20, 0x03, 0xd5  // nop
   };
+  const uint8_t pacBrB[] = {
+      0x30, 0x0e, 0x1f, 0xd7, // brab x17, x16
+      0x1f, 0x20, 0x03, 0xd5  // nop    
+  };
   const uint8_t stdBr[] = {
       0x20, 0x02, 0x1f, 0xd6,  // br   x17
       0x1f, 0x20, 0x03, 0xd5   // nop
@@ -1349,8 +1356,12 @@ void AArch64BtiPac::writePlt(uint8_t *buf, const Symbol &sym,
 
   if (pacEntryKind != PEK_NoAuth)
     memcpy(buf + sizeof(addrInst),
-           pacEntryKind == PEK_AuthHint ? pacHintBr : pacBr,
-           sizeof(pacEntryKind == PEK_AuthHint ? pacHintBr : pacBr));
+           pacEntryKind == PEK_AuthHint ? pacHintBr
+           : pacEntryKind == PEK_Auth   ? pacBr
+                                        : pacBrB,
+           sizeof(pacEntryKind == PEK_AuthHint ? pacHintBr
+                  : pacEntryKind == PEK_Auth   ? pacBr
+                                               : pacBrB));
   else
     memcpy(buf + sizeof(addrInst), stdBr, sizeof(stdBr));
   if (!hasBti)

@@ -169,6 +169,8 @@ struct AArch64PauthAbiCoreInfo {
   bool operator!=(const AArch64PauthAbiCoreInfo &other) const {
     return !(*this == other);
   }
+  bool isBareMetal() const { return platform == 0x1; }
+  bool noAKey() const { return (version & 0x2) == 0x0; }
 };
 
 struct SymbolVersion {
