@@ -587,6 +587,19 @@ void GotSection::writeTo(uint8_t *buf) {
     return;
   ctx.target->writeGotHeader(buf);
   ctx.target->relocateAlloc(*this, buf);
+
+  if (ctx.arg.emachine != EM_AARCH64)
+    return;
+
+  // The default signing schema uses the A keys
+  uint64_t instKey = /*IA*/ 0b00;
+  uint64_t dataKey = /*DA*/ 0b10;
+  if (ctx.aarch64PauthAbiCoreInfo && ctx.aarch64PauthAbiCoreInfo->isValid() &&
+      ctx.aarch64PauthAbiCoreInfo->isBareMetal()) {
+    instKey = ctx.aarch64PauthAbiCoreInfo->procIndInstKey();
+    dataKey = ctx.aarch64PauthAbiCoreInfo->procIndDataKey();
+  }
+
   for (const AuthEntryInfo &authEntry : authEntries) {
     uint8_t *dest = buf + authEntry.offset;
 
@@ -595,15 +608,15 @@ void GotSection::writeTo(uint8_t *buf) {
       continue;
     }
     // https://github.com/ARM-software/abi-aa/blob/2024Q3/pauthabielf64/pauthabielf64.rst#default-signing-schema
-    //   Signed GOT entries use the IA key for symbols of type STT_FUNC and the
-    //   DA key for all other symbol types, with the address of the GOT entry as
-    //   the modifier. The static linker must encode the signing schema into the
-    //   GOT slot.
+    //   Signed GOT entries use the process independent instruction key for
+    //   symbols of type STT_FUNC and the process independent data key for all
+    //   other symbol types, with the address of the GOT entry as the modifier.
+    //   The static linker must encode the signing schema into the GOT slot.
     //
     // https://github.com/ARM-software/abi-aa/blob/2024Q3/pauthabielf64/pauthabielf64.rst#encoding-the-signing-schema
     //   If address diversity is set and the discriminator
     //   is 0 then modifier = Place
-    uint64_t key = authEntry.isSymbolFunc ? /*IA=*/0b00 : /*DA=*/0b10;
+    uint64_t key = authEntry.isSymbolFunc ? instKey : dataKey;
     uint64_t addrDiversity = 1;
     write64(ctx, dest, (addrDiversity << 63) | (key << 60));
   }

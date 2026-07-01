@@ -1321,9 +1321,11 @@ public:
 private:
   bool btiHeader; // bti instruction needed in PLT Header and Entry
   enum {
-    PEK_NoAuth,
-    PEK_AuthHint, // use autia1716 instr for authenticated branch in PLT entry
-    PEK_Auth,     // use braa instr for authenticated branch in PLT entry
+    PEK_NoAuth = 0,
+    PEK_AuthHint =
+        1,         // use autia1716 instr for authenticated branch in PLT entry
+    PEK_AuthA = 2, // use braa instr for authenticated branch in PLT entry
+    PEK_AuthB = 3, // use brab instr for authenticated branch in PLT entry
   } pacEntryKind;
 };
 } // namespace
@@ -1344,9 +1346,11 @@ AArch64BtiPac::AArch64BtiPac(Ctx &ctx) : AArch64(ctx) {
   // instructions.
 
   if (ctx.arg.zPacPlt) {
-    if (ctx.aarch64PauthAbiCoreInfo && ctx.aarch64PauthAbiCoreInfo->isValid())
-      pacEntryKind = PEK_Auth;
-    else
+    if (ctx.aarch64PauthAbiCoreInfo && ctx.aarch64PauthAbiCoreInfo->isValid()) {
+      bool useBKey = ctx.aarch64PauthAbiCoreInfo->isBareMetal() &&
+        ctx.aarch64PauthAbiCoreInfo->procIndInstKey();
+      pacEntryKind = useBKey ? PEK_AuthB : PEK_AuthA;
+    } else
       pacEntryKind = PEK_AuthHint;
   } else {
     pacEntryKind = PEK_NoAuth;
@@ -1402,18 +1406,26 @@ void AArch64BtiPac::writePlt(uint8_t *buf, const Symbol &sym,
       0x11, 0x02, 0x40, 0xf9,  // ldr  x17, [x16, Offset(&(.got.plt[n]))]
       0x10, 0x02, 0x00, 0x91   // add  x16, x16, Offset(&(.got.plt[n]))
   };
-  const uint8_t pacHintBr[] = {
-      0x9f, 0x21, 0x03, 0xd5, // autia1716
-      0x20, 0x02, 0x1f, 0xd6  // br   x17
-  };
-  const uint8_t pacBr[] = {
-      0x30, 0x0a, 0x1f, 0xd7, // braa x17, x16
-      0x1f, 0x20, 0x03, 0xd5  // nop
-  };
-  const uint8_t stdBr[] = {
-      0x20, 0x02, 0x1f, 0xd6,  // br   x17
-      0x1f, 0x20, 0x03, 0xd5   // nop
-  };
+  const uint8_t pacBr[4][8] = {{
+                                   // PEK_NoAuth
+                                   0x20, 0x02, 0x1f, 0xd6, // br   x17
+                                   0x1f, 0x20, 0x03, 0xd5  // nop
+                               },
+                               {
+                                   // PEK_AuthHint
+                                   0x9f, 0x21, 0x03, 0xd5, // autia1716
+                                   0x20, 0x02, 0x1f, 0xd6  // br   x17
+                               },
+                               {
+                                   // PEK_AuthA
+                                   0x30, 0x0a, 0x1f, 0xd7, // braa x17, x16
+                                   0x1f, 0x20, 0x03, 0xd5  // nop
+                               },
+                               {
+                                   // PEK_AuthB
+                                   0x30, 0x0e, 0x1f, 0xd7, // brab x17, x16
+                                   0x1f, 0x20, 0x03, 0xd5  // nop
+                               }};
   const uint8_t nopData[] = { 0x1f, 0x20, 0x03, 0xd5 }; // nop
 
   // NEEDS_COPY indicates a non-ifunc canonical PLT entry whose address may
@@ -1435,16 +1447,13 @@ void AArch64BtiPac::writePlt(uint8_t *buf, const Symbol &sym,
                 getAArch64Page(gotPltEntryAddr) - getAArch64Page(pltEntryAddr));
   relocateNoSym(buf + 4, R_AARCH64_LDST64_ABS_LO12_NC, gotPltEntryAddr);
   relocateNoSym(buf + 8, R_AARCH64_ADD_ABS_LO12_NC, gotPltEntryAddr);
-
-  if (pacEntryKind != PEK_NoAuth)
-    memcpy(buf + sizeof(addrInst),
-           pacEntryKind == PEK_AuthHint ? pacHintBr : pacBr,
-           sizeof(pacEntryKind == PEK_AuthHint ? pacHintBr : pacBr));
-  else
-    memcpy(buf + sizeof(addrInst), stdBr, sizeof(stdBr));
+  memcpy(buf + sizeof(addrInst),
+         pacBr[pacEntryKind],
+         sizeof(pacBr[pacEntryKind]));
   if (!hasBti)
     // We didn't add the BTI c instruction so round out size with NOP.
-    memcpy(buf + sizeof(addrInst) + sizeof(stdBr), nopData, sizeof(nopData));
+    memcpy(buf + sizeof(addrInst) + sizeof(pacBr[pacEntryKind]), nopData,
+           sizeof(nopData));
 }
 
 template <class ELFT>

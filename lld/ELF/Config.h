@@ -170,6 +170,9 @@ struct AArch64PauthAbiCoreInfo {
   bool operator!=(const AArch64PauthAbiCoreInfo &other) const {
     return !(*this == other);
   }
+  bool isBareMetal() const { return platform == 0x1; }
+  uint64_t procIndInstKey() const { return version >> 6 & 0x3; }
+  uint64_t procIndDataKey() const { return version >> 4 & 0x3; }
 };
 
 struct SymbolVersion {
