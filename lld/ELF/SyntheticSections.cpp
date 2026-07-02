@@ -577,6 +577,11 @@ void GotSection::writeTo(uint8_t *buf) {
     return;
   ctx.target->writeGotHeader(buf);
   ctx.target->relocateAlloc(*this, buf);
+  // The default signing schema uses the A keys, but if the
+  // A key is disabled, use the B keys instead.
+  bool useBKey = ctx.aarch64PauthAbiCoreInfo->isBareMetal() &&
+    ctx.aarch64PauthAbiCoreInfo->noAKey();
+
   for (const AuthEntryInfo &authEntry : authEntries) {
     // https://github.com/ARM-software/abi-aa/blob/2024Q3/pauthabielf64/pauthabielf64.rst#default-signing-schema
     //   Signed GOT entries use the IA key for symbols of type STT_FUNC and the
@@ -588,7 +593,9 @@ void GotSection::writeTo(uint8_t *buf) {
     //   If address diversity is set and the discriminator
     //   is 0 then modifier = Place
     uint8_t *dest = buf + authEntry.offset;
-    uint64_t key = authEntry.isSymbolFunc ? /*IA=*/0b00 : /*DA=*/0b10;
+    uint64_t key = authEntry.isSymbolFunc ? useBKey ? /*IB=*/0b01 : /*IA=*/0b00
+                   : useBKey              ? /*DB=*/0b11
+                                          : /*DA=*/0b10;
     uint64_t addrDiversity = 1;
     write64(ctx, dest, (addrDiversity << 63) | (key << 60));
   }
