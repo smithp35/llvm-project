@@ -19,7 +19,6 @@
 
 extern "C" {
 int main(int argc, char **argv);
-void _start();
 
 // Semihosting library initialisation if applicable. Required for printf, etc.
 [[gnu::weak]] void _platform_init() {}
@@ -128,10 +127,15 @@ void GenericException_Handler() { LIBC_NAMESPACE::exit(1); }
 // exception.
 [[gnu::section(".vectors"), gnu::aligned(2048), gnu::used, gnu::naked]]
 void vector_table() {
+#if __has_feature(ptrauth_calls)
+#define VECTOR_TABLE_ENTRY                                                     \
+  asm(".balign 128");                                                          \
+  asm("BR %0" : : "r"(GenericException_Handler));
+#else
 #define VECTOR_TABLE_ENTRY                                                     \
   asm(".balign 128");                                                          \
   asm("B %0" : : "X"(GenericException_Handler));
-
+#endif
   VECTOR_TABLE_ENTRY;
   VECTOR_TABLE_ENTRY;
   VECTOR_TABLE_ENTRY;
@@ -188,9 +192,14 @@ namespace LIBC_NAMESPACE_DECL {
 } // namespace LIBC_NAMESPACE_DECL
 
 extern "C" {
+[[gnu::target("branch-protection=none")]]
+void __bootcode_start() {
+  LIBC_NAMESPACE::do_start();
+}
 [[gnu::section(".text.init.enter"), gnu::naked]]
 void _start() {
   asm volatile("mov sp, %0" : : "r"(&__stack));
-  asm volatile("bl %0" : : "X"(LIBC_NAMESPACE::do_start));
+  asm volatile("b __bootcode_start");
 }
 } // extern "C"
+
