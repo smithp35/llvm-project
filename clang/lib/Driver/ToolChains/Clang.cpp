@@ -1420,7 +1420,7 @@ static bool CollectAArch64PAuthABIOptions(const ToolChain &TC,
   auto IsPAuth = [](const char *member) {
     llvm::AArch64::ExtensionInfo pauth_extension =
         llvm::AArch64::getExtensionByID(llvm::AArch64::AEK_PAUTH);
-    return pauth_extension.PosTargetFeature == member;
+    return llvm::AArch64::StrTab[pauth_extension.PosTargetFeature] == member;
   };
   if (llvm::any_of(CmdArgs, IsPAuth))
     SupportsPAuth = true;
