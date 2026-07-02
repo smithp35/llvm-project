@@ -55,43 +55,43 @@
 // RUN:   -fptrauth-calls -fptrauth-function-pointer-type-discrimination %s | \
 // RUN:   FileCheck %s --check-prefix=FPTRTYPE
 
-// ALL: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// ALL: !{i32 1, !"aarch64-elf-pauthabi-version", i32 4095}
+// ALL: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// ALL: !{i32 1, !"aarch64-elf-pauthabi-version", i64 4095}
 
-// INTRIN: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// INTRIN: !{i32 1, !"aarch64-elf-pauthabi-version", i32 1}
+// INTRIN: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// INTRIN: !{i32 1, !"aarch64-elf-pauthabi-version", i64 1}
 
-// CALL: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// CALL: !{i32 1, !"aarch64-elf-pauthabi-version", i32 2}
+// CALL: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// CALL: !{i32 1, !"aarch64-elf-pauthabi-version", i64 2}
 
-// RET: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// RET: !{i32 1, !"aarch64-elf-pauthabi-version", i32 4}
+// RET: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// RET: !{i32 1, !"aarch64-elf-pauthabi-version", i64 4}
 
-// TRAP: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// TRAP: !{i32 1, !"aarch64-elf-pauthabi-version", i32 8}
+// TRAP: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// TRAP: !{i32 1, !"aarch64-elf-pauthabi-version", i64 8}
 
-// VPTRADDR: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// VPTRADDR: !{i32 1, !"aarch64-elf-pauthabi-version", i32 18}
+// VPTRADDR: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// VPTRADDR: !{i32 1, !"aarch64-elf-pauthabi-version", i64 18}
 
-// VPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// VPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-version", i32 34}
+// VPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// VPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-version", i64 34}
 
-// INITFINI: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// INITFINI: !{i32 1, !"aarch64-elf-pauthabi-version", i32 66}
+// INITFINI: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// INITFINI: !{i32 1, !"aarch64-elf-pauthabi-version", i64 66}
 
-// INITFINIADDR: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// INITFINIADDR: !{i32 1, !"aarch64-elf-pauthabi-version", i32 194}
+// INITFINIADDR: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// INITFINIADDR: !{i32 1, !"aarch64-elf-pauthabi-version", i64 194}
 
-// ELFGOT: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// ELFGOT: !{i32 1, !"aarch64-elf-pauthabi-version", i32 256}
+// ELFGOT: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// ELFGOT: !{i32 1, !"aarch64-elf-pauthabi-version", i64 256}
 
-// GOTOS: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// GOTOS: !{i32 1, !"aarch64-elf-pauthabi-version", i32 512}
+// GOTOS: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// GOTOS: !{i32 1, !"aarch64-elf-pauthabi-version", i64 512}
 
-// TYPEINFO: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// TYPEINFO: !{i32 1, !"aarch64-elf-pauthabi-version", i32 1026}
+// TYPEINFO: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// TYPEINFO: !{i32 1, !"aarch64-elf-pauthabi-version", i64 1026}
 
-// FPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-platform", i32 268435458}
-// FPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-version", i32 2050}
+// FPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-platform", i64 268435458}
+// FPTRTYPE: !{i32 1, !"aarch64-elf-pauthabi-version", i64 2050}
 
 void foo() {}

@@ -1600,10 +1600,10 @@ void CodeGenModule::Release() {
         if (PAuthABIVersion != 0) {
           getModule().addModuleFlag(llvm::Module::Error,
                                     "aarch64-elf-pauthabi-platform",
-                                    PAuthABIPlatform);
+                                    llvm::ConstantInt::get(Int64Ty, PAuthABIPlatform));
           getModule().addModuleFlag(llvm::Module::Error,
                                     "aarch64-elf-pauthabi-version",
-                                    PAuthABIVersion);
+                                    llvm::ConstantInt::get(Int64Ty, PAuthABIVersion));
         }
       }
     }
