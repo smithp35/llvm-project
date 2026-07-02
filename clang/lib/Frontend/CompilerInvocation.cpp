@@ -3615,6 +3615,7 @@ static void ParseAPINotesArgs(APINotesOptions &Opts, ArgList &Args,
 }
 
 static void GeneratePointerAuthArgs(const LangOptions &Opts,
+                                    const PointerAuthOptions &PAuthOpts,
                                     ArgumentConsumer Consumer) {
   if (Opts.PointerAuthIntrinsics)
     GenerateArg(Consumer, OPT_fptrauth_intrinsics);
@@ -3654,6 +3655,10 @@ static void GeneratePointerAuthArgs(const LangOptions &Opts,
     GenerateArg(Consumer, OPT_fptrauth_noakey);
   if (Opts.PointerAuthNoBKey)
     GenerateArg(Consumer, OPT_fptrauth_nobkey);
+  if (PAuthOpts.ELFPlatformId)
+    GenerateArg(Consumer, OPT_pauthabi_platform_EQ, Twine(PAuthOpts.ELFPlatformId));
+  if (PAuthOpts.ELFVersionNum)
+    GenerateArg(Consumer, OPT_pauthabi_version_EQ, Twine(PAuthOpts.ELFVersionNum));
 }
 
 static void ParsePointerAuthArgs(LangOptions &Opts, ArgList &Args,
@@ -5511,7 +5516,7 @@ void CompilerInvocationBase::generateCC1CommandLine(
   GenerateTargetArgs(getTargetOpts(), Consumer);
   GenerateHeaderSearchArgs(getHeaderSearchOpts(), Consumer);
   GenerateAPINotesArgs(getAPINotesOpts(), Consumer);
-  GeneratePointerAuthArgs(getLangOpts(), Consumer);
+  GeneratePointerAuthArgs(getLangOpts(), getCodeGenOpts().PointerAuth, Consumer);
   GenerateLangArgs(getLangOpts(), Consumer, T, getFrontendOpts().DashX);
   GenerateCodeGenArgs(getCodeGenOpts(), Consumer, T,
                       getFrontendOpts().OutputFile, &getLangOpts());

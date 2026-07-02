@@ -255,10 +255,10 @@ struct PointerAuthOptions {
   PointerAuthSchema ObjCClassROPointers;
 
   /// The Platform Id to record in the ELF marking describing schema.
-  uint64_t ELFPlatformId;
+  uint64_t ELFPlatformId = 0;
 
   /// The Version number to record in the ELF marking describing schema.
-  uint64_t ELFVersionNum;
+  uint64_t ELFVersionNum = 0;
 };
 
 } // end namespace clang
