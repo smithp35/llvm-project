@@ -44,6 +44,15 @@ mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-p
 mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-nobkey
 mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-nobkey/include
 mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-nobkey/lib
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro/include
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro/lib
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro-noakey
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro-noakey/include
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro-noakey/lib
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro-nobkey
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro-nobkey/include
+mkdir -p ${TOOLS_INSTALL_DIR}/lib/clang-runtimes/aarch64-none-elf/aarch64a-8.3-pauthabi-relro-nobkey/lib
 
 
 # Install multilib.yaml
@@ -123,6 +132,24 @@ build_compiler_rt build-compiler-rt-pauthabi-nobkey \
 		  aarch64-unknown-none-elf \
 		  aarch64a-8.3-pauthabi-nobkey
 
+build_compiler_rt build-compiler-rt-pauthabi-relro \
+		  "-march=armv8.3-a -mpauthabi-profile=platform+relro -fpie"\
+		  "-march=armv8.3-a -mpauthabi-profile=platform+relro -Wno-error=atomic-alignment -fpie"\
+		  aarch64-unknown-none-elf \
+		  aarch64a-8.3-pauthabi-relro
+
+build_compiler_rt build-compiler-rt-pauthabi-relro \
+		  "-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -fpie"\
+		  "-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -Wno-error=atomic-alignment -fpie"\
+		  aarch64-unknown-none-elf \
+		  aarch64a-8.3-pauthabi-relro-noakey
+
+build_compiler_rt build-compiler-rt-pauthabi-relro \
+		  "-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -fpie"\
+		  "-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -Wno-error=atomic-alignment -fpie"\
+		  aarch64-unknown-none-elf \
+		  aarch64a-8.3-pauthabi-relro-nobkey
+
 build_llvm_libc () {
 
     BUILD_DIR=$1
@@ -196,6 +223,24 @@ build_llvm_libc build-llvmlibc-pauthabi-nobkey \
 		"-march=armv8.3-a -mpauthabi-profile=platform+nobkey -fpie -Wno-error=atomic-alignment"\
 		aarch64-unknown-none-elf \
 		aarch64a-8.3-pauthabi-nobkey
+
+build_llvm_libc build-llvmlibc-pauthabi-relro \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro -fpie"\
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro -fpie -Wno-error=atomic-alignment"\
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro
+
+build_llvm_libc build-llvmlibc-pauthabi-relro-noakey \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -fpie"\
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -fpie -Wno-error=atomic-alignment"\
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro-noakey
+
+build_llvm_libc build-llvmlibc-pauthabi-relro-nobkey \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -fpie"\
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -fpie -Wno-error=atomic-alignment"\
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro-nobkey
 
 # Step 3 libc++ libc++abi and libunwind
 
@@ -295,6 +340,24 @@ build_libcpp build-libcpp-pauthabi-nobkey \
 		aarch64-unknown-none-elf \
 		aarch64a-8.3-pauthabi-nobkey
 
+build_libcpp build-libcpp-relro-pauthabi \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro -mmark-bti-property -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro -Wno-error=atomic-alignment -fpie" \
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro
+
+build_libcpp build-libcpp-pauthabi-relro-noakey \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -mmark-bti-property -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -Wno-error=atomic-alignment -fpie" \
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro-noakey
+
+build_libcpp build-libcpp-pauthabi-relro-nobkey \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -mmark-bti-property -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -Wno-error=atomic-alignment -fpie" \
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro-nobkey
+
 # Step 4 startup and support code
 
 build_support () {
@@ -344,26 +407,44 @@ build_support () {
 }
 
 build_support build-support \
-		"-march=armv8.3-a -mmark-bti-property -fpie" \
-		"-march=armv8.3-a -mbranch-protection=standard -Wno-error=atomic-alignment -fpie" \
+		"-march=armv8.3-a -mmark-bti-property -fpie -fno-rtti -fno-exceptions" \
+		"-march=armv8.3-a -mbranch-protection=standard -Wno-error=atomic-alignment -fno-rtti -fno-exceptions -fpie" \
 		aarch64-unknown-none-elf \
 		aarch64a-8.3-branch-protection
 
 build_support build-support-pauthabi \
-		"-march=armv8.3-a -mpauthabi-profile=platform -mmark-bti-property -fpie" \
-		"-march=armv8.3-a -mpauthabi-profile=platform -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform -mmark-bti-property -fno-rtti -fno-exceptions -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie -fno-rtti -fno-exceptions" \
 		aarch64-unknown-none-elf \
 		aarch64a-8.3-pauthabi
 
 build_support build-support-pauthabi-noakey \
-		"-march=armv8.3-a -mpauthabi-profile=platform+noakey -mmark-bti-property -fpie" \
-		"-march=armv8.3-a -mpauthabi-profile=platform+noakey -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+noakey -mmark-bti-property -fpie -fno-rtti -fno-exceptions" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+noakey -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie -fno-rtti -fno-exceptions" \
 		aarch64-unknown-none-elf \
 		aarch64a-8.3-pauthabi-noakey
 
 build_support build-support-pauthabi-nobkey \
-		"-march=armv8.3-a -mpauthabi-profile=platform+nobkey -mmark-bti-property -fpie" \
-		"-march=armv8.3-a -mpauthabi-profile=platform+nobkey -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+nobkey -mmark-bti-property -fpie -fno-rtti -fno-exceptions" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+nobkey -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie -fno-rtti -fno-exceptions" \
 		aarch64-unknown-none-elf \
 		aarch64a-8.3-pauthabi-nobkey
+
+build_support build-support-pauthabi-relro \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro -mmark-bti-property -fno-rtti -fno-exceptions -fpie" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie -fno-rtti -fno-exceptions" \
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro
+
+build_support build-support-pauthabi-relro-noakey \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -mmark-bti-property -fpie -fno-rtti -fno-exceptions" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+noakey -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie -fno-rtti -fno-exceptions" \
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro-noakey
+
+build_support build-support-pauthabi-relro-nobkey \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -mmark-bti-property -fpie -fno-rtti -fno-exceptions" \
+		"-march=armv8.3-a -mpauthabi-profile=platform+relro+nobkey -mbranch-protection=pac-ret -Wno-error=atomic-alignment -fpie -fno-rtti -fno-exceptions" \
+		aarch64-unknown-none-elf \
+		aarch64a-8.3-pauthabi-relro-nobkey
 
