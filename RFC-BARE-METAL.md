@@ -1,33 +1,21 @@
-# [RFC] Bare metal driver support for AArch64 Pointer Authentication ABI (PAuthABI).
+# [RFC][AArch64] Full support for ELF AArch64 Pointer Authentication ABI (PAuthABI).
 
 ## RFC Summary
 
-* Add PAuthABI support to the bare-metal driver.
+* Define a set of high-level signing-schemas (profiles) that capture
+  the most common signing-schema choices. With the guiding principle
+  that the choice of signing-schema is the platform.
 
-* Adds new command-line options to describe the signing-schemas for a
-  bare-metal platform.
+* Define the platform and version identifiers in the ELF marking
+  scheme.
 
-* Adds a new low-level command-line option to control which keys are available.
+* Define new command-line options to select a profile including a
+  "custom" signing-schema using the low-level command-line options.
 
-* The recommended signing-schemas are split into named profiles. With
-  a custom profile allowing for full control.
+* Add support for bare-metal targets.
 
-* The profiles are assigned a version number in the ELF marking
-  scheme. Custom profiles are by default mapped to private
-  experiments.
-
-The RFC contains a lot more information than is practical to include
-in a Discourse RFC. There's rationale, some information that will need
-to go into the ABI documents and some proposals that are out of scope
-of the bare-metal driver.
-
-I'd like to get some feedback from the PAuthABI community first. Then
-I can post a stripped down version for Discourse that focuses on the
-driver changes as that's where I'll need some backing for any PRs that
-modify the baremetal driver.
-
-I've added "Review question:" where I think there's most likely to be
-discussion.
+* Adds a new low-level command-line option to control which keys are
+  available.
 
 ## Brief Summary of AArch64 PAuthABI
 
@@ -46,42 +34,38 @@ its own ABI.
 * [2019 LLVM Dev Meeting talk arm64e: an ABI for Pointer Authentication](https://www.youtube.com/watch?v=C1nZvpEBfYA)
 * [2024 LLVM Dev Meeting talk on Adding Pointer Authentication ABI to ELF platforms](https://www.youtube.com/watch?v=bytWm7BzJVE)
 
-## Existing Linux target support for PAuthABI
+## Existing Linux support for PAuthABI
 
 As each choice of signing-schema is its own ABI, deploying PAuthABI on
-an open platform such as Linux is challenging. The choice of a signing-schema
-would either become the ABI for the distribution or an ABI for
-a multilib or nix package.
+an open platform such as Linux is challenging. The choice of a
+signing-schema would either become the ABI for the distribution or an
+ABI for a multilib or nix package.
 
 As there is no commitment yet to a particular signing-schema a "test"
-signing-schema has been implemented in LLVM to highlight that the
-signing-schema is subject to change.
+signing-schema has been implemented in LLVM to permit tests to be
+written, but without the commitment to a stable ABI while under
+development.
 
 The test signing-schema is available for AArch64 linux targets via the
 environment pauthtest . This can be put into the target triple
 directly, like `aarch64-unknown-linux-pauthtest` or via
-`-mabi=pauthtest` which is canonicalised into the triple. The
-pauthtest environment is currently ignored by non linux triples.
+`-mabi=pauthtest` which is canonicalised into the triple as the
+pauthtest environment. The pauthtest environment is currently ignored
+by non linux triples.
 
-The pauthtest environment is not heavily used in the clang and llvm
-code-bases. Instead use of the environment sets a number of low-level
-command-line options that define the signing schema. It also enables
-command-line options to individually tweak these low-level options,
-with the proviso that each combination of low-level options is its own
+The pauthtest environment sets a number of low-level command-line
+options that define the signing schema. It also enables command-line
+options to individually tweak these low-level options, with the
+proviso that each combination of low-level options is its own
 signing-schema and hence its own ABI.
 
 Access-softek provide build scripts for a PAuthTest Linux sysroot
 based on a statically linked Musl toolchain
 [pauth-toolchain-build-scripts](https://github.com/access-softek/pauth-toolchain-build-scripts)
 
-As an aside, I think we may have made a mistake with `-mabi=pauthtest`
-. All the other uses of `-mabi` in AArch64 are procedure call standard
-variants, and PAuthABI doesn't affect the procedure call standard.
+## Motivation to move to full support
 
-Review question: Is anyone using `-mabi=pauthtest`? Could we remove
-it?
-
-## Bare-metal support for PAuthABI
+### Support for bare-metal targets
 
 The `pauthtest` environment is currently restricted to the Linux
 driver. However the majority of PAuthABI can be supported on
@@ -89,120 +73,105 @@ bare-metal with no additional run-time support. The remainder can be
 handled by an integrated "dynamic" relocation resolver that runs prior
 to entering `main`.
 
-The intended use case for bare-metal PAuthABI is firmware and secure
-software operating at the highest privilege level (EL3).
+A fully statically linked bare-metal target is in many ways an easier
+target than Linux as there is more freedom to choose an ABI. A
+motivation for PAuthABI is in firmware and secure OS development.
 
-Fully statically linked bare-metal systems can choose a
-signing-schema at build time which makes them an ideal first target
-for PAuthABI. The downside of targeting bare-metal systems is that
-there is no one size fits all signing-schema due to the wide variety of
-capabilities each bare-metal system posesses. Our expectation is that a
-small number of signing-schemas mapping to the most common use cases
-will be sufficient.
+### Encourage wider use of PAuthABI
 
-This RFC is intended to determine what the command-line interface is
-for PAuthABI in the bare-metal driver. It also describes how to record
-the signing-schema using the existing ELF marking scheme. While the
-bare-metal configuration options can be independent of the existing
-`pauthtest` environment, it has been designed so that it
-can apply to a platform like Linux.
+The `pauthtest` environment was explicitly chosen to let the
+signing-schema evolve while under development. However the name is now
+an obstacle for actual usage as users will need guarantees of ABI
+stability for a signing-schema choice.
 
-Review question: Is there any motivation to formalise the support on
-Linux beyond `pauthtest`? The `aarch64-linux-pauthtest` triple could
-in theory be retired in favour of `aarch64-linux-gnu` or more likely
-`aarch64-linux-musl` with something like
-`-mpauthabi-profile=pauthtest`. See [Appendix: PAuthTest and
--mpauthabi-profile](#appendix-pauthtest-and--mpauthabi-profile) for more
-details.
-
-The general idea for the command-line interface is:
-
-* No use of the environment in the target-triple, there isn't a single
-  environment that will work for bare-metal targets.
-
-* A new option `-mpauthabi-profile` that will select between a number
-  of pre-defined signing-schemas, `custom` for a hand-rolled
-  signing-schema, or the default of `none` meaning no use of the
-  PAuthABI. The profile has two effects. The first is to define the
-  signing-schema in terms of existing low-level `-fptrauth` command-line
-  options. The second is to set the platform identifier and version
-  number in the ELF marking to one of the known profiles.
-
-* Each `-mpauthabi-profile` that isn't `none` or `custom` will have
-  an ELF marking within the same bare-metal `platform identifier`.
-  A `custom` profie will use a different `platform identifier`.
-
-* New option `-fptrauth-keys` to control which keys are available for
-  the signing schema to use. This is intended be used by
-  `-mpauthabi-profile`. This will be one of `a`, `b` and the
-  default of `both`.
-
-* The `-mpauthabi-profile` will initially be limited to the
-  `aarch64-none-elf` target. The option could be enabled on other
-  drivers such as Linux, although the available profiles could be
-  restricted.
-
-* The `-mpauthabi-profile=<profile>` will be made available as a
-  multilib selection flag. We assume a toolchain will provide at most
-  one library variant with a `custom` signing-schema so matching on
-  `-mpauthabi-profile=custom` is sufficient. Moreover we do not expect
-  toolchains to provide multilibs for all the profiles.
-
-* The command-line flags that would cause incompatibilities with the
-  profile will produce an error message unless a custom signing-schema
-  is in use with `-mpauthabi-profile=custom`. For example
-  `-fptrauth-function-pointer-type-discrimination`.
-
-* The `-mbranch-protection` options that include `standard` and
-  `pac-ret` are incompatible with any value of `-mpauthabi-profile`
-  that is not `none`. Both options affect the signing of return
-  addresses in conflicting ways. See [Appendix: Interaction with
-  -mbranch-protection
-  option](#appendix-interaction-with--mbranch-protection-option) for
-  more details.
-
-* A new option `-mpauthabi-custom-version=<number>` to manually set the
-  `version number` in the build attributes. This is intended to be
-  used with `-mpauthabi-profile=custom`.
-
-* A new option `-mpauthabi-platformid=<number>` to manually set the
-  `platform id` in the build attributes. This is intended to be used
-  with `-mpauthabi-profile=custom`.
-
-* When `-mdefault-build-attributes` is used the platform identifier
-  and version number, from the profile or when set by command-line
-  options will be added to assembler files.
-
-* The baremetal driver will not have an equivalent for the linux
-  driver's `-mabi=pauthtest`.
+While existing Linux Distributions won't have a PAuthABI user-space,
+individual applications can be built with PAuthABI support if their
+dependencies can be also be rebuilt. Separate experiments using a Musl
+based sysroot and Nix have been able to build some complex software
+packages.
 
 # PAuthABI profiles
 
-There are four architectural properties of bare-metal systems that have
-a significant effect on the signing-schema:
+To support PAuthABI we propose to batch low-level signing-schema
+choices into a smaller number of high-level profiles that can be
+documented, and are small enough in number that we can publish the
+platform and version identifiers.
+
+The guiding principles behind a choice of profiles to choose the
+signing-schema:
+
+* There is no single signing-schema that will satisfy everyone due to
+  language and platform capabilities.
+
+* To support PAuthABI efficiently a platform owner will want to define
+  a default signing-schema for the platform. To use the default
+  signing-schema should require a minimal amount of configuration.
+
+* Where there is no obvious platform owner such as bare-metal, more
+  profile options are likely to be needed.
+
+* Tools such as the static and dynamic linker can diagnose
+  incompatible signing-schema
+
+* A user can roll their own signing-schema using the lower-level
+  options.
+
+## Command line option to select profiles
+
+For `aarch64-linux-*` and `aarch64-none-elf` targets add a
+`-mpauthabi-profile=<profile>` option. Where `<profile>` is one of:
+
+* `none`; the default option meaning no pointer authentication. This
+  can be used to disable any previous command-line use of
+  `-mpauthabi-profile`.
+
+* `custom`; roll your own signing-schema using the low level
+  `-fptrauth-*` command-line options. A `custom` profile may require
+  additional command-line options to choose the ELF platform, version
+  identification of the signing-schema.
+
+* `platform`; the default signing-schema for the target. Some targets
+  such as `aarch64-none-elf` may suppport additional profiles by
+  adding modifiers with `+modifier` in a similar way to the
+  `-mbranch-protection` option such as `pac-ret+leaf`. The low-level
+  `-fptrauth-*` options are not available when `<profile>` is
+  `platform`. The default signing-schema may differ between platforms.
+
+The intent is that the majority of users will use
+`-mpauthabi-profile=platform`.
+
+Additional named profiles representing specific signing-schema can be
+added at a later date if needed.
+
+The `-mpauthabi-profile` option will be available as a multilib
+selection flag.
+
+## Additional Bare-Metal PAuthABI profile modifiers
+
+There are four architectural properties of bare-metal systems that
+have a significant effect on the signing-schema:
 
 * Does the system support relocation read-only (RELRO)? On a platform
   like linux RELRO is handled by the dynamic linker by reading an ELF
-  program-header. For a bare-metal system this would mean isolating
-  the RELRO components into a separate segment in the linker-script,
-  and remapping the memory pages for that segment read-only after the
-  embedded relocation resolver has finished operating on these
-  components. As supporting RELRO on bare-metal is not standardised
-  the working assumption is that we cannot assume RELRO. If the system
-  supports RELRO then the GOT can be assigned to RELRO and remain
-  unsigned.
+  program-header, we cannot guarantee its availability on all
+  platforms though. A system that supports RELRO does not need to sign
+  the GOT.
 
 * Can the program support type diversity for C function pointers? This
-  is a property of how the source code uses function pointers. As the
-  C-standard permits operations on function pointers that prevents
-  type diversity from being used this is off by default. If the
-  program can support type diversity for C function pointers then the
-  signing-schema can incorporate that.
+  is a property of how the source code for the programs running on the
+  platform uses function pointers. As the C-standard permits
+  operations on function pointers that prevents type diversity from
+  being used this is off by default. If the program can support type
+  diversity for C function pointers then the signing-schema can
+  incorporate that.
 
-* Which keys are available to be used. The Pauthtest and arm64e make
-  use of both keys, but in some systems the kernel and userspace use
-  different keys. For example kernel uses the B keys exclusively and
-  userspace the A keys exclusively.
+* Which keys are available to be used. The hardware has two sets of
+  keys for signing pointers, the A keys (IA, DA) and B keys (IB and
+  DB), with I key for Code pointers and the D for data pointers. The
+  pauthtest and arm64e implementations use both A and B keys, with the
+  A key as the process independent key and B key for the process
+  independent key. Some platforms intent to use just one key for
+  programs, for example userspace uses A key, kernel uses B key.
 
 * The version number of the profile. Ideally we only need one version
   number, but if in the future we need to change the profile in an
@@ -211,283 +180,50 @@ a significant effect on the signing-schema:
 This gives 12 profiles, assuming version 1 only, each representing a
 permuation of these decisions.
 
-The defaults for baremetal are:
-
-* Not strict.
-* No RELRO.
-* Both Keys available.
-* Latest version.
-
 | Option | RELRO | C function pointer type diversity | keys | version |
 | ------ | ----- | --------------------------------- | ---- | ------- |
-| baremetal | No | No | AB | 1 |
-| baremetal+akey | No | No | A | 1 |
-| baremetal+bkey | No | No | B | 1 |
-| baremetal+strict | No | Yes | AB | 1 |
-| baremetal+strict+akey | No | Yes | A | 1 |
-| baremetal+strict+bkey | No | Yes | B | 1 |
-| baremetal+relro | Yes | No | AB | 1 |
-| baremetal+relro+akey | Yes | No | A | 1 |
-| baremetal+relro+bkey | Yes | No | B | 1 |
-| baremetal+strict+relro | Yes | Yes | AB | 1 |
-| baremetal+strict+relro | Yes | Yes | A | 1 |
-| baremetal+strict+relro | Yes | Yes | B | 1 |
-
-A prefix of `baremetal` has been used in case the `-mpauth-profile` is
-used for a target-triple including an `OS`, where there may be
-different or a restricted set of profiles available. For example an OS
-like Linux may wish to only support one profile that will closely
-match `baremetal+relro`. A new value called `platform` could be the
-only acceptable option for triple's including `OS`.
-
-For an explicit version number we could add +vN where N is the version
-number. By default we would select the highest version number.
-
-Review question: An alternative to cramming all the decisions into one
-command-line-option would be to split into one option each dimension.
-For example `--pauthabi-profile=baremetal` `--pauth-abi-profile-relro`
-`--pauthabi-profile-strict` and `--pauth-abi-profile-version`. The
-main disadvantage is having to validate the combination of these 4
-options separately, although parsing each one is easier.
-
-## Evolving the signing-schema used in the profiles
-
-In summary, a profile is open to addition but closed to
-modification. If there is a need to sign a new type of pointer that is
-not present in any existing object within a profile, then signing of
-the new type of pointer can be added to that existing profile. However
-if there are any changes in how a pointer that *is* present in an
-existing object is signed, then we cannot use an existing profile.
-
-If a signed pointer is sufficiently local in scope that it can never
-be dereferenced by code compiled by a different signing-schema then it
-can be added to an existing profile.
-
-The expectation is that adding pointer authentication support to a new
-language will not change the profile:
-
-* Pointer types specific to the language will be by definition not
-  used by any existing object.
-
-* Pointer types used across language boundaries must be signed in a compatible
-  way with the existing profile.
-
-## Adding a new named profile to -mpauthabi-profile
-
-* Get agreement via a RFC/PR from the upstream community. The
-  expectation is that a new profile would represent a major design
-  decision, either by the platform or source language. Narrowly useful
-  profiles, such as small deviations from existing profiles, should be
-  handled with a `custom` profile.
-
-* Document the signing-schema implemented by the profile in terms of
-  the low-level command-line options.
-
-* Obtain a version number for the profile if added to an existing
-  platform identifier.
-
-## The -fptrauth-keys option
-
-This option is added to implement the key restrictions of the
-`-mpauthabi-profile` option. This is so a `custom` signing schema can
-replicate an option available to a profile.
-
-The available options are:
-| -mpauthabi-profile option | -fptrauth-keys | A key available | B key available |
-| ------------------------- | -------------- | --------------- | --------------- |
-| default                   | `both`         |               1 |               1 |
-| `+akey`                   | `a`            |               1 |               0 |
-| `+bkey`                   | `b`            |               0 |               1 |
-
-The `-fptrauth-keys` option can be restricted to the bare-metal target
-as it is not likely to be supported in PAuthTest/arm64e.
-
-Aside: The current `ptrauth.h` header file in the clang resource
-directory hard-codes some of the key roles, libc++abi and libunwind
-make use of these values. I expect that we will need to define macros
-so that `ptrauth.h` can pickup the keys from `-fptrauth-keys`.
-
-## Signing-schema for profiles
-
-The profiles are described in terms of the low-level command-line
-options that control the signing-schema. It must always be possible to
-recreate the signing-schema for a profile by using
-`-mpauthabi-profile=custom` and individual command-line options.
-
-### Clang command-line options to choose pointer authentication options
-
-The existing command-line options below define the possible
-signing-schemas. They have been broken out into language independent
-and language specific options.
-
-#### Language independent options
-| Command-line option | Description | Affects signing-schema across interfaces |
-| ------------------- | ----------- | ---------------------------------------- |
-| `-fptrauth-intrinsics` | Enable ptrauth intrinscics | No, user responsible for matching signing-schema across interface boundaries. |
-| `-fptrauth-calls` | Enable signing and authentication of all indirect calls | Yes |
-| `-fptrauth-returns` | Enable signing and authentication of return addresses | Yes, PAuthABI assumes all return addresses signed uniformly. |
-| `-fptrauth-auth-traps` | Enable traps on authentication failures | No |
-| `-fptrauth-init-fini` | Enable signing of function pointers in init/fini arrays | Yes |
-| `-fptrauth-init-fini-address-discrimination` | Enable address discrimination of function pointers in init/fini arrays | Yes |
-  `-fptrauth-elf-got` | ptrauth-elf-got", "Enable authentication of pointers from GOT (ELF only) | Yes |
-
-#### C/C++ specific options
-| Command-line option | Description | Affects signing-schema across interfaces |
-| ------------------- | ----------- | ---------------------------------------- |
-| `-fptrauth-function-pointer-type-discrimination` | Enable type discrimination on C function pointers | Yes |
-| `-fptrauth-vtable-pointer-address-discrimination` | Enable address discrimination of vtable pointers | Yes |
-| `-fptrauth-vtable-pointer-type-discrimination` | Enable type discrimination of vtable pointers | Yes |
-| `-fptrauth-type-info-vtable-pointer-discrimination` | Enable type and address discrimination of vtable pointer of std::type_info | Yes |
-| `-fptrauth-indirect-gotos` | Enable signing and authentication of indirect goto targets (GNU C computed gotos) | Yes |
-
-
-#### Objective C, Objective C++ specific
-| Command-line option | Description | Affects signing-schema across interfaces |
-| ------------------- | ----------- | ---------------------------------------- |
-| `-fptrauth-objc-isa` | Enable signing and authentication of Objective-C object's 'isa' field | Yes |
-| `-fptrauth_objc_interface_sel` | Enable signing and authentication of Objective-C object's 'SEL' fields | Yes |
-| `-fptrauth_objc_class_ro` | Enable signing and authentication for ObjC class_ro pointers | Yes |
-| `-fptrauth_block_descriptor_pointers` | ptrauth_block_descriptor_pointers | Yes |
-
-
-#### Related options
-| Command-line option | Description | Affects signing-schema across interfaces |
-| ------------------- | ----------- | ---------------------------------------- |
-| `-faarch64_jump_table_hardening` | Use hardened lowering for jump-table dispatch | No |
-
-### baremetal
-
-The baseline profile in terms of command-line options that
-are significant across an interface boundary is made up of:
-
-- `-fptrauth-calls`
-- `-fptrauth-init-fini`
-- `-fptrauth-init-fini-address-discrimination`
-- `-fptrauth-elf-got`
-- `-fptrauth-vtable-pointer-address-discrimination`
-- `-fptrauth-vtable-pointer-type-discrimination`
-- `-fptrauth-indirect-gotos`
-- `-fptrauth-objc-isa`
-- `-fptrauth_objc_interface_sel`
-- `-fptrauth_objc_class_ro`
-- `-fptrauth_block_descriptor_pointers`
-
-In particular GOT signing is on by default as we cannot assume
-RELRO. Type discrimination for C function pointers is off.
-
-This describes a schema of:
-
-| Pointer | Key | Discriminator |
-| ------- | --- | ------------- |
-| `return address` | `APIB` | `Address` |
-| `function pointer` | `APIA` | `None` |
-| `init fini` | `APIA` | `Address` |
-| `ELF GOT` | `APIA` | `Address` |
-| `vtable pointer` | `APDA` | `Address` |
-| `vtable table` | `APDA` | `None` |
-| `vtable type-info pointer` | `APDA` | `Constant(0xB1EA)` |
-| `virtual function pointers` | `APIA` | `Declaration` |
-| `variadic virtual function pointers` | `APIA` | `Declaration` |
-| `member function pointers` | `APIA` | `Type` |
-| `indirect gotos` | `APIA` | `None` |
-| `block invovation pointers` | `APIA` | `None` |
-| `block helper functions` | `APIA` | `None` |
-| `block byref helper functions` | `APIA` | `None` |
-| `obj c method list function pointers` | `APIA` | `None` |
-| `obj c method list pointers` | `APDA` | `Constant(0xC310)` |
-| `obj c Isa pointers` | `APDA` | `Constant(0x6AE1)` |
-| `obj c super pointers` | `APDA` | `Constant(0xB5AB)` |
-| `obj c ro pointers` | `APDA` | `Constant(0x61F8)` |
-| `obj c sel pointers` | `APDB` | `Constant(0x57c2)` |
-
-When `+akey` or `+bkey` is used then the Key in the table above is
-always the A key. For example for `+bkey` then `APIB` and `APDB`
-remains the same, `APIA` and `APDA` become `APIB` and `APDB`
-respectively.
-
-* Note: that the table above includes pointer types that do not have
-  an associated command-line option to change the signing-schema.
-
-* Note: block refers to clang's Block extension, and obj c refers to
-  Objective C.
-
-* Note: the signing-schema indirect gotos is provisional. In general
-  it is not expected that the pointer escapes the function.
-
-* Note: return address signing includes leaf functions, like
-  `-mbranch-protection=pac-ret+leaf`.
-
-* Note: The table above uses the Arm architecture names for the
-  keys. The Clang/llvm implementation refers to keys with an `AS`
-  rather than `AP` prefix, so `APIA` in the table above is `ASIA` in
-  the source code.
-
-### baremetal+strict
-
-As `baremetal` but with type discrimination for C function
-pointers enabled: - `-fptrauth-function-pointer-type-discrimination`
-
-This changes the signing schema of the function pointer row in the
-`baremetal` signing-schema to:
-
-| Pointer | Key | Discriminator |
-| ------- | --- | ------------- |
-| `function pointer` | `APIA` | `Type` |
-
-The program is responsible for the absence of casts that would change
-the type diversity of a C function pointer.
-
-### baremetal+relro
-
-As `baremetal` but with GOT signing off.
-
-* `-fno-ptrauth-elf-got`
-
-This removes the `ELF GOT` row from the baremetal-baseline signing
-schema.
-
-The program is responsible for placing the GOT in RELRO, and for the
-runtime to enforce RELRO.
-
-### baremetal+strict+relro
-
-As `baremetal` but with GOT signing off and type discrimination
-for C function pointers enabled:
-
-* `-fptrauth-function-pointer-type-discrimination`
-
-* `-fno-ptrauth-elf-got`
-
-This changes the signing schema of the function pointer row in the
-`baremetal` signing-schema to:
-
-| Pointer | Key | Discriminator |
-| ------- | --- | ------------- |
-| `function pointer` | `APIA` | `Type` |
-
-Also removing the `ELF GOT` row from the `baremetal` signing
-schema.
-
-The program is responsible for the absence of casts that would change
-the type diversity of a C function pointer.
-
-The program is responsible for placing in the GOT in RELRO, and for the runtime to enforce RELRO.
-
-### Defaults for non profile impacting command-line options
-
-The following command-line options are all enabled by default.
-
-* `-fptrauth-intrinsics`
-* `-fptrauth-auth-traps`
-* `-faarch64_jump_table_hardening`
-
-These can be toggled without changing the profile.
-
-Review question: While not strictly part of the ABI for compatibility,
-a platform holder may want to enforce that these options are enabled,
-should these be part of the requirements for a profile anyway?
-
-## Object and shared object compatibility and versioning
+| platform | No | No | AB | 1 |
+| platform+noakey | No | No | B | 1 |
+| platform+nobkey | No | No | A | 1 |
+| platform+strict | No | Yes | AB | 1 |
+| platform+strict+noakey | No | Yes | B | 1 |
+| platform+strict+nobkey | No | Yes | A | 1 |
+| platform+relro | Yes | No | AB | 1 |
+| platform+relro+noakey | Yes | No | B | 1 |
+| platform+relro+nobkey | Yes | No | A | 1 |
+| platform+strict+relro | Yes | Yes | AB | 1 |
+| platform+strict+relro+noakey | Yes | Yes | B | 1 |
+| platform+strict+relro+nobkey | Yes | Yes | A | 1 |
+
+### Possible Alternatives
+
+Instead of `platform+modifier-list` use a single named profile for
+each option. This was rejected after the requirement for restricting
+keys trebled the number of combinatins.
+
+Instead of `platform+modifier-list` use additional command-line
+options for the modifiers, for example
+`-mpauthabi-profile-relro`. This was rejected as it makes it harder to
+restrict modifiers to targets, and it loses the emphasis that the
+platform, version ELF marking can be determined from
+-mpauthabi=platform.
+
+Instead of `+noakey` and `+nobkey`, other options include:
+
+* `+akeyonly`, `+bkeyonly`
+
+* `+aonly`, `bonly`
+
+* `pia`, `pib`, `pda`, `pdb` where pi is process-independent key and
+  pd is process-dependent key.
+
+## Interaction between profiles and the pauthtest environment
+
+The two options can coexist, although the user must pick one or the
+other. This RFC proposes to deprecate the `pauthtest` environment and
+`-mabi=pauthtest`
+
+# Object and shared object compatibility and versioning
 
 When `-mpauthabi-profile` is set to any option but `none` the ELF objects
 record the signing-schema in the ELF object. This permits static and
@@ -506,380 +242,90 @@ a platform identifier reserved for bare-metal, this RFC will propose a
 signing schema for bare-metal that will be rolled back into the
 [PAuthABIspecification](https://github.com/ARM-software/abi-aa/blob/main/pauthabielf64/pauthabielf64.rst).
 
-### Platform identifier
+## Platform identifier
 
 The following is a proposed change to the platform identifier section
 of the
 [PAuthABI.rst](https://github.com/ARM-software/abi-aa/blob/main/pauthabielf64/pauthabielf64.rst#141core-information)
 
-* Rename the `baremetal` platform id to `baremetal-profile`. Custom
-  profiles will use the private experiment space.
-
 * Reserve the top 8-bits of the platform identifier for a range of ids
   for private experiments. No official platform id will clash with a
   private experiment, but a private experiments may clash with other
-  private experiments.
+  private experiments. Custom profiles may safely use the private
+  experiment platform fields.
 
-### Baremetal profiles
+* Rename the `baremetal` platform id to `baremetal-profile`. This
+  platform-id is used when `-mpauthabi-profile=platform`
+  `--target=aarch64-none-elf`. The `platform` includes all the
+  modifiers like `+strict` and `+relro`.
 
-#### Platform identifier
+* Add a `linux-baseline` platform id with value `0x2` that can be used
+  for `-mpauthabi-profile=platform` `--target=aarch64-linux-*`.
 
-When `-mpauthabi-profile` includes `baremetal` the `baremetal-profile` platform-id is
-used. This can be overridden by `-mpauthabi-platformid=<number>`
-
-#### Version number
+## Version number for baremetal-profiles
 
 We map the profiles to the following bits in the version number. This
 can be overriden by `-mpauthabi-custom-version=<number>`
 
 | Profile name/Feature bit | Version [63 - 56] | RESERVED [55 - 4] | Relro [3] | Strict [2] | A key used [1] | B key used [0] | Value |
 | ------------------------ | ----------------- | ----------------- | --------- | ---------- | -------------- | -------------- | ------|
-| baremetal                |                 1 |                 - |         0 |          0 |              1 |              1 | 0x01000003 |
-| baremetal+akey           |                 1 |                 - |         0 |          0 |              1 |              0 | 0x01000002 |
-| baremetal+bkey           |                 1 |                 - |         0 |          0 |              0 |              1 | 0x01000001 |
-| baremetal+strict         |                 1 |                 - |         0 |          1 |              1 |              1 | 0x01000007 |
-| baremetal+strict+akey    |                 1 |                 - |         0 |          1 |              1 |              0 | 0x01000006 |
-| baremetal+strict+bkey    |                 1 |                 - |         0 |          1 |              0 |              1 | 0x01000005 |
-| baremetal+relro          |                 1 |                 - |         1 |          0 |              1 |              1 | 0x0100000b |
-| baremetal+relro+akey     |                 1 |                 - |         1 |          0 |              1 |              0 | 0x0100000a |
-| baremetal+relro+bkey     |                 1 |                 - |         1 |          0 |              0 |              1 | 0x01000009 |
-| baremetal+strict+relro   |                 1 |                 - |         1 |          1 |              1 |              1 | 0x0100000f |
-| baremetal+strict+relro+akey |                 1 |                 - |         1 |          1 |              1 |              0 | 0x0100000e |
-| baremetal+strict+relro+bkey |                 1 |                 - |         1 |          1 |              0 |              1 | 0x0100000d |
-
-### Private experiments
-
-#### Platform id
-
-When `-mpauthabi-profile=custom` then the default LLVM experimental
-platform id will be used . This is `0x0100000000000000` (number 1 in
-the reserved range). This can be overriden by
-`-mpauthabi-platformid=<number>`.
-
-##### version number
-
-When `-mpauthabi-profile=custom` a default version number will be
-derived from the PAuthABI. This can be overridden by
-`-mpauthabi-custom-version=<number>`
-
-### Derived signing-schema for private experiments
-
-When a custom profile is used, and no
-`-mpauth-custom-version=<number>` is used we can derive a version
-number from the feature bits set.
-
-The bits have been separated out into:
-
-| Bits | Language |
-| ---- | -------- |
-| [0 - 15] | Language Independent options |
-| [16 - 31] | C/C++ |
-| [32 - 47] | Objective C/Swift |
-| [48 - 63] | Reserved for future use |
-
-This makes it easier to introduce a mask property, see [Adding a
-version mask field to the
-ELFMarking](#adding-a-version-mask-field-to-the-elf-marking).
-
-Review question: Do we need a derived signing-schema? Could we require
-people using a custom signing schema to set the version number
-themselves?
-
-Review question: Non-ABI affecting parts of the options are
-represented here. This puts enforcement before interoperability. If we
-prefer interoperability of relocatable objects we should remove the
-bits for things like `-fptrauth-intrinsics`.
-
-| Command-line option | Lang Opt | feature bit |
-| ------------------- | -------- | ----------- |
-| `-fptrauth-intrinsics` | `PointerAuthIntrinsics` | 0 |
-| `-fptrauth-calls` | `PointerAuthCalls`  | 1 |
-| `-fptrauth-returns` | `PointerAuthReturns` | 2 |
-| `-fptrauth-auth-traps` | `PointerAuthAuthTraps` | 3 |
-| `-fptrauth-init-fini` | `PointerAuthInitFini` | 4 |
-| `-fptrauth-init-fini-address-discrimination` | `PointerAuthInitFiniAddressDiscrimination` | 5 |
-| `-fptrauth-elf-got` | `PointerAuthELFGOT` | 6 |
-| `-fptrauth-elf-keys` | `TBD` | [7 - 8] `both` = `11`, `a` = `10`, `b` = `01` |
-| `RESERVED` | `RESERVED` | [9 - 15] |
-
-#### C/C++ specific options
-
-| Command-line option | Lang Opt | feature bit |
-| ------------------- | -------- | ----------- |
-| `-fptrauth-function-pointer-type-discrimination` | `PointerAuthFunctionTypeDiscrimination` | 16 |
-| `-fptrauth-vtable-pointer-address-discrimination` | `PointerAuthVTPtrAddressDiscrimination` | 17 |
-| `-fptrauth-vtable-pointer-type-discrimination` | `PointerAuthVTPtrTypeDiscrimination`  | 18 |
-| `-fptrauth-type-info-vtable-pointer-discrimination` | `PointerAuthTypeInfoVTPtrDiscrimination` | 19 |
-| `-fptrauth-indirect-gotos` | `PointerAuthIndirectGotos` | 20 |
-| `RESERVED` | `RESERVED` | [21 - 31] |
-
-
-#### Objective C, Objective C++ specific
-
-| Command-line option | Lang Opt | feature bit |
-| ------------------- | -------- | ----------- |
-| `-fptrauth-objc-isa` |  | 32 |
-| `-fptrauth_objc_interface_sel` |  | 33 |
-| `-fptrauth_objc_class_ro` |  | 34 |
-| `-fptrauth_block_descriptor_pointers` |  | 35 |
-| `RESERVED` | `RESERVED` | [36 - 47] |
-
-#### PAuthTest ELF Marking
-
-For reference the existing PAuthTest uses a `platform id` of
-`0x10000002`, with `version number` derived using the following bit
-positions:
-
-```
-enum : unsigned {
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INTRINSICS = 0,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_CALLS = 1,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_RETURNS = 2,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_AUTHTRAPS = 3,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_VPTRADDRDISCR = 4,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_VPTRTYPEDISCR = 5,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INITFINI = 6,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_INITFINIADDRDISC = 7,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_GOT = 8,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_GOTOS = 9,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_TYPEINFOVPTRDISCR = 10,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_FPTRTYPEDISCR = 11,
-  AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_LAST =
-      AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_FPTRTYPEDISCR,
-};
-```
-
-# Appendix: PAuthTest and `-mpauthabi-profile`
-
-This appendix is a proposal for replacing the `pauthtest` environment
-with `-mpauthprofile`. It is dependent on the `-mpauthprofile`
-command-line option but it is not required for the baremetal driver
-changes.
-
-The `pauthtest` environment has been added so that tests and a builbot
-can be provided for PAuthABI. It is marked as "test" to avoid
-committing Linux userspace to a signing-schema without consulation
-with the Linux community.
-
-An environment was used as it is expected that there would only be one
-user-space signing-schema supported on a platform. However this may
-mean that Linux support for PAuthABI is forever at `pauthtest` as
-obtaining consensus on a single Linux signing-schema and its
-corresponding ELF marking may be difficult.
-
-The `-mpauthprofile` option could offer a way to introduce some more
-formal support for PAuthABI in Linux without making a full commitment
-for the community. It could also replace the pauthtest environment to
-simplify the number of options for targeting PAuthABI in upstream
-LLVM.
-
-## Linux profile selection
-
-* A new profile `linux-baseline` is added. This is initially a synonym
-  for `baremetal-baseline-relro`.
-
-* The Linux driver will only accept `none`, `custom` and profiles
-  starting with `linux`.
-
-* The Baremetal driver will only accept `none`, `custom` and profiles
-  starting with `baseline`.
-
-Review question: Any preferences on how to describe profiles for a
-particular driver? We could strip out the `baremetal` prefix from the
-profiles so that they could be shared across drivers or we could
-introduce a named linux profile that is a synonym. For example
-`linux-baseline` is the same as `baremetal-baseline-relro`. I think we
-want to avoid profiles with the same name meaning different things on
-different drivers, for example `baseline` could include RELRO on
-Linux, but not bare-metal.
-
-My preference is for prefixed profiles as it makes it easier to filter
-the supported options for the driver.
-
-## Linux profile platform identifier and version number
-
-### Platform Identifier [PAuthABI ELF
-Marking](https://github.com/ARM-software/abi-aa/blob/main/pauthabielf64/pauthabielf64.rst#14elf-marking)
-will reserve a platform identifier for Linux profiles
-
-* `Linux-profile` `0x2`
-
-### Version Number
-
-Following the same convention as `baremetal-baseline-relro` we use the
-same version number:
-
-* `linux-baseline` `0x2`
-
-### Custom signing schema
-
-These can be set using the same command-line options as bare-metal. We
-use the same reserved platform space as bare-metal:
-
-* -mpauth-custom-version
-
-* -mpauth-custom-platformid
-
-If adopted we can also use the same [derived signing schema for
-private experiments](#derived-signing-schema-for-private-experiments).
-
-# Appendix: Interaction with -mbranch-protection option
-
-The `-mbranch-protection` option is an existing option that focuses on
-control-flow integrity of branches with a limited effect on the ABI. A
-subset of the available options like `+pac-ret` use pointer
-authentication to protect the return address in an incompatible way to
-that required by the PAuthABI, although other options such as `+bti`
-and `+gcs` do not use pointer authentication and can in principle be
-combined with PAuthABI. There is also a composite option `standard`
-which includes `+bti`, `+pac-ret` and `+gcs`. It is expected that
-future CFI integrity options that do not require a new ABI will be
-added to this option.
-
-Initially a `-mpauthabi-profile` of anything other `none` will error if
-`-mbranch-protection` includes `pac-ret`. Including `standard`.
-
-In the future there could be ways to interact more gracefully, for
-example could the PAuthABI signing schema override the more limited
-uses of pointer authentication given by -mbranch-protection,
-particularly when `standard` is used.
-
-At least one incompatibility of `-mbranch-protection=pac-ret` is that
-the unwinder uses metadata to determine how the return address is signed
-whereas the PAuthABI assumes the return address is signed the same way.
-
-## Why not add to -mbranch-protection?
-
-While strongly related to `-mbranch-protection`, the PAuthABI involves
-a substantial change to the ABI, and requires too many additional
-configuration options to shoehorn into `-mbranch-protection`. It would
-also raise expectations that it is additive to
-`-mbranch-protection=standard` rather than being an alternative.
-
-## Distro default -mbranch-protection?
-
-Some Linux distributions enable `-mbranch-protection=standard` by
-default, at least for `aarch64-linux-gnu` targets. This may conflict
-with any use of `-mpauthabi-profile`. If a future Linux PAuthABI
-uses the `aarch64-linux-gnu` target they may have to manually set
-`-mbranch-protection=none` to clear any distro default.
-
-# Appendix: Reasoning behind compatibility and versioning
-
-This section is a not part of the RFC. It contains a description of a
-version number mask, to make a fine-grained description of the
-signing-schema more open to expansion. However as there's no demand
-for such a mechanism yet, it remains a thought experiment.
-
-As each signing-schema is its own ABI, mixing objects with different
-signing-schemas can lead to runtime failure. We want to protect users
-from making obvious mistakes, without overconstraining the evolution
-of a signing-schema over time, moreover we want to be able to make the
-checks simple and fast.
-
-The [PAuthABI ELF
-Marking](https://github.com/ARM-software/abi-aa/blob/main/pauthabielf64/pauthabielf64.rst#14elf-marking)
-provides a mechanism for a platform to define an ELF marking with a
-tuple consisting of a (`uint64_t` `platform identifier`, `uint64_t`
-`version number`). The compatibility model implemented by static and
-dynamic linkers is that both `platform identifier` and `version
-number` must match. However it defers to platforms what to put into
-the 64-bits that comprise the version number.
-
-## Coarse or Fine grained descriptions of the signing-schema
-
-A maximally coarse grained description of a signing-schema uses a
-single version number to describe the signing-schema. Using the
-example of profiles this could be as simple as 1 for
-baremetal-baseline, 2 for baremetal-strict, 3 for
-baremetal-baseline-relro, 4 for baremetal-strict-relro . Any object
-claiming to conform to the profile is compatible with the profile,
-regardless of how the profile evolves over time, or the source
-language used. We defer the reasoning about compatibility with the
-profile to the object-producer. For example if there's an additional
-code-pointer that is signed, but it either does not leak across the
-ABI boundary or is only present in new objects, then that object can
-still claim to conform to the same profile.
-
-A maximally fine grained description of a signing-schema derives a
-version number from the individual signing-schema decisions. For
-example we could assign each signing-schema decision a bit within the
-version number. Unless the number of decisions exceeds 64, then we can
-precisely record the signing-schema. If a new compiler adds an
-additional signing-schema decision then using it will automatically
-alter the version number. This has the benefit of never missing a
-potentially ABI breaking change, but it may also prevent compatibility
-for options where a the additional decision can be added in a
-backwards compatible way.
-
-A hybrid of the two kinds of signing-schema could be to break up the
-version number into segments, each describing a batch of related
-signing-schema options. For example the common signing-schema options,
-C++ specific, Rust specific etc. See source language signing-schema
-and interoperability below.
-
-## Source language signing-schema and interoperability
-
-The ABI for each source language, like the itanium ABI, determines the
-language constructs that are implemented by code-pointers. For example
-vtables in C++. It follows that each language has its own signing
-schema. However languages interoperate, often via a common subset of
-the ABI, such as that supported by C. If the version number were
-language specific then we may rule out interoperability on a common
-subset. For example a C object knowns nothing about vtables so should
-it matter how vtables are signed?
-
-A coarse grained version number for the platform can accommodate this
-by defining what it means for languages to interoperate on that
-platform. For example if C++, C and Rust conform to signing-schema `N`
-then the common subset of signing is that defined by signing-schema
-`N`.
-
-A fine grained version number that included the signing-schema changes
-for each source language would likely be fragile, as more languages
-support PAuthABI the number of set individual bits would grow even if
-they were not relevant for interoperability.
-
-## Adding a version mask field to the ELF Marking
-
-The compatibility model requires both platform and version to match
-exactly. In a hybrid or fine grained encoding of the signing-schema
-not all of the features described will be of importance to all
-objects. For example a C object will not care about how a vtable
-pointer is signed.
-
-To make a hybrid or fine grained encoding work in practice we add an
-optional `version mask` field to use in conjunction with the `version
-number`.
-
-* When a `version mask` is not present. A default mask of
-  `0xffffffffffffffff` is applied. I.e. all the bits are used in the
-  comparison.
-
-* For an object, its `version number & ¬version mask = 0`. I.e. all
-  the bits set in the `version number` are also set in the `version
-  mask`.
-
-* Instead of comparing version-numbers directly, for each object we
-  compare the object's `(version number & version mask)` against the
-  program's `(version number & version mask)`.
-
-* When updating the program's `version number`, for each compatible
-  object the new program `version number` is program `version number |
-  object version number`, i.e. the programs version number
-  incorporates all the bits that have been set by the all the objects.
-
-* The program's `version mask` for propagation into the GNU properties
-  for the executable/shared-object is the updated by program `version
-  mask | object version mask`, i.e. the executable/shared-object cares
-  about all the bits the objects care about.
-
-The default `version mask` means that for compatibility all bits must
-match so we are back to the original scheme without a `version mask`.
-
-A file that makes no use of code pointers can use a mask of `0x0` to
-be compatible with all `version numbers` and have no effect on the
-programs `version number`.
-
-The presence of a version mask could be detected by the `pr_data`
-size.
+| platform                 |                 1 |                 - |         0 |          0 |              1 |              1 | 0x01000003 |
+| platform+noakey          |                 1 |                 - |         0 |          0 |              1 |              0 | 0x01000001 |
+| platform+nobkey          |                 1 |                 - |         0 |          0 |              0 |              1 | 0x01000002 |
+| platform+strict          |                 1 |                 - |         0 |          1 |              1 |              1 | 0x01000007 |
+| platform+strict+noakey   |                 1 |                 - |         0 |          1 |              0 |              1 | 0x01000005 |
+| platform+strict+nobkey   |                 1 |                 - |         0 |          1 |              1 |              0 | 0x01000006 |
+| platform+relro           |                 1 |                 - |         1 |          0 |              1 |              1 | 0x0100000b |
+| platform+relro+noakey    |                 1 |                 - |         1 |          0 |              0 |              1 | 0x01000009 |
+| platform+relro+nobkey    |                 1 |                 - |         1 |          0 |              1 |              0 | 0x0100000a |
+| platform+strict+relro    |                 1 |                 - |         1 |          1 |              1 |              1 | 0x0100000f |
+| platform+strict+relro+noakey |                 1 |                 - |         1 |          1 |              0 |              1 | 0x0100000d |
+| platform+strict+relro+nobkey |                 1 |                 - |         1 |          1 |              1 |              0 | 0x0100000e |
+
+Alternatives:
+
+Each of the profile names expand into a number of lower level
+`-fptrauth-*` options. The version number for all targets could be the
+same if derived from the state of the `-fptrauth-*` options. The main
+trade off is that if any additional -fptrauth-* options are added,
+even if backwards compatible, will modify the signing schema for the
+platform.
+
+## Version number for linux platform profile
+
+The platform signing-schema for Linux is equivalent to platform+relro. Initially we propose to use the same high-level feature bits as bare-metal. In the table below `platform` has been substituted for `platform+norelro` and `platform+relro` for `platform`.
+
+| Profile name/Feature bit | Version [63 - 56] | RESERVED [55 - 4] | Relro [3] | Strict [2] | A key used [1] | B key used [0] | Value |
+| ------------------------ | ----------------- | ----------------- | --------- | ---------- | -------------- | -------------- | ------|
+| platform+norelro         |                 1 |                 - |         0 |          0 |              1 |              1 | 0x01000003 |
+| platform+norelro+noakey  |                 1 |                 - |         0 |          0 |              1 |              0 | 0x01000001 |
+| platform+norelro+nobkey  |                 1 |                 - |         0 |          0 |              0 |              1 | 0x01000002 |
+| platform+norelro+strict  |                 1 |                 - |         0 |          1 |              1 |              1 | 0x01000007 |
+| platform+norelro+strict+noakey |                 1 |                 - |         0 |          1 |              0 |              1 | 0x01000005 |
+| platform+norelro+strict+nobkey |                 1 |                 - |         0 |          1 |              1 |              0 | 0x01000006 |
+| platform           |                 1 |                 - |         1 |          0 |              1 |              1 | 0x0100000b |
+| platform+noakey    |                 1 |                 - |         1 |          0 |              0 |              1 | 0x01000009 |
+| platform+nobkey    |                 1 |                 - |         1 |          0 |              1 |              0 | 0x0100000a |
+| platform+strict    |                 1 |                 - |         1 |          1 |              1 |              1 | 0x0100000f |
+| platform+strict+noakey |                 1 |                 - |         1 |          1 |              0 |              1 | 0x0100000d |
+| platform+strict+nobkey |                 1 |                 - |         1 |          1 |              1 |              0 | 0x0100000e |
+
+## Additional command-line options for ELF marking scheme
+
+For a `custom` profile, or someone wishing to set the platform or
+version directly the following options can set the platform and
+version directly.
+
+* `-mpauthabi-platformid=<number>` manually sets the `platform id` in
+  the build attributes to `<number>`.
+
+* `-mpauthabi-custom-version=<number>` manually sets the `version
+  number` in the build attributes to `<number>`.  used with
+  `-mpauthabi-profile=custom`.
+
+## Deriving a signing-schema for a custom profile
+
+If `-mpauthabi-platformid` or `-mpauthabi-custom-version` aren't
+present, a default platform id in the private experiment space can be
+used, and a version number can be derived from the fptrauth flags. The
+details of the mapping is TBD.
