@@ -10,12 +10,12 @@ struct S {
 };
 
 int S::f() {
-  puts("S::f()\n");
+  printf("S::f()\n");
   return 0;
 }
 
 int S::g() {
-  puts("S::g()\n");
+  printf("S::g()\n");
   return 1;
 }
 
