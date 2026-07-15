@@ -177,6 +177,13 @@ have a significant effect on the signing-schema:
   number, but if in the future we need to change the profile in an
   incompatible way we can bump the version number.
 
+The modifiers are described as flags that can be enabled or
+disabled. With a prefix of no disabling the option. This permits more
+profiles that have a different starting signing-schema to reuse the
+same modifiers. As an example, the default signing-schemas both enable
+both the A and B keys, so +noakey and +nobkey are required to disable
+them.
+
 This gives 12 profiles, assuming version 1 only, each representing a
 permuation of these decisions.
 
