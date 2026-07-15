@@ -255,11 +255,13 @@ of the
   experiment platform fields.
 
 * Rename the `baremetal` platform id to `baremetal-profile`. This
-  platform-id is used when `-mpauthabi-profile=platform`
-  `--target=aarch64-none-elf`. The `platform` includes all the
-  modifiers like `+strict` and `+relro`.
+  platform-id is used when `-mpauthabi-profile=platform[+modifiers]`
+  `--target=aarch64-none-elf`. Where `[+modifiers]` incorporates the
+  signing-schema modifiers like `+strict` and `+relro`. The effect on
+  the signing-schema from the modifiers is captured in the version
+  number.
 
-* Add a `linux-baseline` platform id with value `0x2` that can be used
+* Add a `linux-profile` platform id with value `0x2` that can be used
   for `-mpauthabi-profile=platform` `--target=aarch64-linux-*`.
 
 ## Version number for baremetal-profiles
