@@ -5475,6 +5475,8 @@ static bool printAArch64PAuthABICoreInfo(raw_ostream &OS, uint32_t DataSize,
       return "invalid";
     case AARCH64_PAUTH_PLATFORM_BAREMETAL:
       return "baremetal";
+    case AARCH64_PAUTH_PLATFORM_LINUX_PROFILE:
+      return "linux";
     case AARCH64_PAUTH_PLATFORM_LLVM_LINUX:
       return "llvm_linux";
     default:
@@ -5483,6 +5485,27 @@ static bool printAArch64PAuthABICoreInfo(raw_ostream &OS, uint32_t DataSize,
   }();
 
   std::string VersionDesc = [Platform, Version]() -> std::string {
+    if (Platform == AARCH64_PAUTH_PLATFORM_BAREMETAL ||
+        Platform == AARCH64_PAUTH_PLATFORM_LINUX_PROFILE) {
+      // Use the PAuthABI profile version
+      // [63-56] Profile Version
+      // [55-10] Reserved
+      // [9]     RELRO
+      // [8]     Strict
+      // [6-7]   Process Independent Instruction Key
+      // [4-5]   Process Independent Data Key
+      // [2-3]   Process Dependent Instruction Key
+      // [0-1]   Process Dependent Data Key
+      std::string Desc = "Version:" + std::to_string(Version >> 56);
+      Desc += (Version >> 9 & 0x1) ? ", relro, " : ", norelro, ";
+      Desc += (Version >> 8 & 0x1) ? "strict, " : "nostrict, ";
+      StringRef KeyStr[4] = {"ia", "ib", "da", "db"};
+      Desc += Twine("Keys:" + KeyStr[Version >> 6 & 0x3] +
+                    KeyStr[Version >> 4 & 0x3] + KeyStr[Version >> 2 & 0x3] +
+                    KeyStr[Version & 0x3])
+                  .str();
+      return Desc;
+    }
     if (Platform != AARCH64_PAUTH_PLATFORM_LLVM_LINUX)
       return "";
     if (Version >= (1 << (AARCH64_PAUTH_PLATFORM_LLVM_LINUX_VERSION_LAST + 1)))
