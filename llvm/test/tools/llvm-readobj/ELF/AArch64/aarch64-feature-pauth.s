@@ -207,6 +207,94 @@ end:
 # RUN: llvm-readobj --notes gnu-0x10000002-4096.o | \
 # RUN:   FileCheck --check-prefix=OBJ -DPLATFORM="0x10000002 (llvm_linux)" -DVERSION="0x1000 (unknown)" %s
 
+#--- gnu-pauthabi-baremetal.s
+.section ".note.gnu.property", "a"
+  .long 4           // Name length is always 4 ("GNU")
+  .long end - begin // Data length
+  .long 5           // Type: NT_GNU_PROPERTY_TYPE_0
+  .asciz "GNU"      // Name
+  .p2align 3
+begin:
+  # PAuth ABI property note
+  .long 0xc0000001  // Type: GNU_PROPERTY_AARCH64_FEATURE_PAUTH
+  .long 16          // Data size
+  .quad 0x1         // PAuth ABI platform for BareMetal
+  .quad 0x0100000000000227 // PAuth ABI version
+  .p2align 3        // Align to 8 byte for 64 bit
+end:
+
+# RUN: llvm-mc -filetype=obj -triple aarch64-none-elf gnu-pauthabi-baremetal.s -o gnu-pauthabi-baremetal.o
+# RUN: llvm-readelf --notes gnu-pauthabi-baremetal.o | \
+# RUN:   FileCheck --check-prefix=ELF -DPLATFORM="0x1 (baremetal)" -DVERSION="0x100000000000227 (Version:1, relro, nostrict, Keys:iadaibdb)" %s
+# RUN: llvm-readobj --notes gnu-pauthabi-baremetal.o | \
+# RUN:   FileCheck --check-prefix=OBJ -DPLATFORM="0x1 (baremetal)" -DVERSION="0x100000000000227 (Version:1, relro, nostrict, Keys:iadaibdb)" %s
+
+#--- gnu-pauthabi-baremetal-alla.s
+.section ".note.gnu.property", "a"
+  .long 4           // Name length is always 4 ("GNU")
+  .long end - begin // Data length
+  .long 5           // Type: NT_GNU_PROPERTY_TYPE_0
+  .asciz "GNU"      // Name
+  .p2align 3
+begin:
+  # PAuth ABI property note
+  .long 0xc0000001  // Type: GNU_PROPERTY_AARCH64_FEATURE_PAUTH
+  .long 16          // Data size
+  .quad 0x1         // PAuth ABI platform for BareMetal
+  .quad 0x0100000000000222 // PAuth ABI version
+  .p2align 3        // Align to 8 byte for 64 bit
+end:
+
+# RUN: llvm-mc -filetype=obj -triple aarch64-none-elf gnu-pauthabi-baremetal-alla.s -o gnu-pauthabi-baremetal-alla.o
+# RUN: llvm-readelf --notes gnu-pauthabi-baremetal-alla.o | \
+# RUN:   FileCheck --check-prefix=ELF -DPLATFORM="0x1 (baremetal)" -DVERSION="0x100000000000222 (Version:1, relro, nostrict, Keys:iadaiada)" %s
+# RUN: llvm-readobj --notes gnu-pauthabi-baremetal-alla.o | \
+# RUN:   FileCheck --check-prefix=OBJ -DPLATFORM="0x1 (baremetal)" -DVERSION="0x100000000000222 (Version:1, relro, nostrict, Keys:iadaiada)" %s
+
+#--- gnu-pauthabi-baremetal-strict-allb.s
+.section ".note.gnu.property", "a"
+  .long 4           // Name length is always 4 ("GNU")
+  .long end - begin // Data length
+  .long 5           // Type: NT_GNU_PROPERTY_TYPE_0
+  .asciz "GNU"      // Name
+  .p2align 3
+begin:
+  # PAuth ABI property note
+  .long 0xc0000001  // Type: GNU_PROPERTY_AARCH64_FEATURE_PAUTH
+  .long 16          // Data size
+  .quad 0x1         // PAuth ABI platform for BareMetal
+  .quad 0x0100000000000377 // PAuth ABI version
+  .p2align 3        // Align to 8 byte for 64 bit
+end:
+
+# RUN: llvm-mc -filetype=obj -triple aarch64-none-elf gnu-pauthabi-baremetal-strict-allb.s -o gnu-pauthabi-baremetal-strict-allb.o
+# RUN: llvm-readelf --notes gnu-pauthabi-baremetal-strict-allb.o | \
+# RUN:   FileCheck --check-prefix=ELF -DPLATFORM="0x1 (baremetal)" -DVERSION="0x100000000000377 (Version:1, relro, strict, Keys:ibdbibdb" %s
+# RUN: llvm-readobj --notes gnu-pauthabi-baremetal-strict-allb.o | \
+# RUN:   FileCheck --check-prefix=OBJ -DPLATFORM="0x1 (baremetal)" -DVERSION="0x100000000000377 (Version:1, relro, strict, Keys:ibdbibdb" %s
+
+#--- gnu-pauthabi-linux-profile.s
+.section ".note.gnu.property", "a"
+  .long 4           // Name length is always 4 ("GNU")
+  .long end - begin // Data length
+  .long 5           // Type: NT_GNU_PROPERTY_TYPE_0
+  .asciz "GNU"      // Name
+  .p2align 3
+begin:
+  # PAuth ABI property note
+  .long 0xc0000001  // Type: GNU_PROPERTY_AARCH64_FEATURE_PAUTH
+  .long 16          // Data size
+  .quad 0x2         // PAuth ABI platform for Linux
+  .quad 0x0100000000000027 // PAuth ABI version
+  .p2align 3        // Align to 8 byte for 64 bit
+end:
+
+# RUN: llvm-mc -filetype=obj -triple aarch64-linux-gnu gnu-pauthabi-linux-profile.s -o gnu-pauthabi-linux-profile.o
+# RUN llvm-readelf --notes gnu-pauthabi-linux-profile.o | \
+# RUN   FileCheck --check-prefix=ELF -DPLATFORM="0x2 (linux)" -DVERSION="0x100000000000027 (Version:1, norelro, nostrict, Keys:iadaibdb)" %s
+# RUN llvm-readobj --notes gnu-pauthabi-linux-profile.o | \
+# RUN   FileCheck --check-prefix=OBJ -DPLATFORM="0x2 (linux)" -DVERSION="0x100000000000027 (Version:1, norelro, nostrict, Keys:iadaibdb)" %s
+
 #--- gnu-short.s
 .section ".note.gnu.property", "a"
   .long 4           // Name length is always 4 ("GNU")
