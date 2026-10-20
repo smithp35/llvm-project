@@ -1565,6 +1565,23 @@ static void parsePointerAuthOptions(PointerAuthOptions &Opts,
   CompilerInvocation::setDefaultPointerAuthOptions(Opts, LangOpts, Triple);
 }
 
+static void parsePointerAuthELFPlatformAndVersionArgs(
+    PointerAuthOptions &Opts, ArgList &Args, DiagnosticsEngine &Diags) {
+  if (const auto *Arg = Args.getLastArg(OPT_pauthabi_platform_EQ)) {
+    StringRef S = Arg->getValue();
+    if (S.getAsInteger(0, Opts.ELFPlatformId))
+      Diags.Report(diag::err_drv_invalid_value) << Arg->getAsString(Args) << S;
+  } else
+    Opts.ELFPlatformId = 0;
+
+  if (const auto *Arg = Args.getLastArg(OPT_pauthabi_version_EQ)) {
+    StringRef S = Arg->getValue();
+    if (S.getAsInteger(0, Opts.ELFVersionNum))
+      Diags.Report(diag::err_drv_invalid_value) << Arg->getAsString(Args) << S;
+  } else
+    Opts.ELFVersionNum = 0;
+}
+
 void CompilerInvocationBase::GenerateCodeGenArgs(const CodeGenOptions &Opts,
                                                  ArgumentConsumer Consumer,
                                                  const llvm::Triple &T,
@@ -2341,8 +2358,11 @@ bool CompilerInvocation::ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args,
 
   Opts.EmitVersionIdentMetadata = Args.hasFlag(OPT_Qy, OPT_Qn, true);
 
-  if (!LangOpts->CUDAIsDevice)
+  if (!LangOpts->CUDAIsDevice) {
+    if (T.isOSBinFormatELF())
+      parsePointerAuthELFPlatformAndVersionArgs(Opts.PointerAuth, Args, Diags);
     parsePointerAuthOptions(Opts.PointerAuth, *LangOpts, T, Diags);
+  }
 
   if (Args.hasArg(options::OPT_ffinite_loops))
     Opts.FiniteLoops = CodeGenOptions::FiniteLoopsKind::Always;
@@ -3624,6 +3644,7 @@ static void ParseAPINotesArgs(APINotesOptions &Opts, ArgList &Args,
 }
 
 static void GeneratePointerAuthArgs(const LangOptions &Opts,
+                                    const PointerAuthOptions &PAuthOpts,
                                     ArgumentConsumer Consumer) {
   if (Opts.PointerAuthIntrinsics)
     GenerateArg(Consumer, OPT_fptrauth_intrinsics);
@@ -3661,6 +3682,10 @@ static void GeneratePointerAuthArgs(const LangOptions &Opts,
     GenerateArg(Consumer, OPT_fptrauth_objc_class_ro);
   if (Opts.PointerAuthBlockDescriptorPointers)
     GenerateArg(Consumer, OPT_fptrauth_block_descriptor_pointers);
+  if (PAuthOpts.ELFPlatformId)
+    GenerateArg(Consumer, OPT_pauthabi_platform_EQ, Twine(PAuthOpts.ELFPlatformId));
+  if (PAuthOpts.ELFVersionNum)
+    GenerateArg(Consumer, OPT_pauthabi_version_EQ, Twine(PAuthOpts.ELFVersionNum));  
 }
 
 static void ParsePointerAuthArgs(LangOptions &Opts, ArgList &Args,
@@ -5566,7 +5591,7 @@ void CompilerInvocationBase::generateCC1CommandLine(
   GenerateTargetArgs(getTargetOpts(), Consumer);
   GenerateHeaderSearchArgs(getHeaderSearchOpts(), Consumer);
   GenerateAPINotesArgs(getAPINotesOpts(), Consumer);
-  GeneratePointerAuthArgs(getLangOpts(), Consumer);
+  GeneratePointerAuthArgs(getLangOpts(), getCodeGenOpts().PointerAuth, Consumer);
   GenerateLangArgs(getLangOpts(), Consumer, T, getFrontendOpts().DashX);
   GenerateCodeGenArgs(getCodeGenOpts(), Consumer, T,
                       getFrontendOpts().OutputFile, &getLangOpts());
