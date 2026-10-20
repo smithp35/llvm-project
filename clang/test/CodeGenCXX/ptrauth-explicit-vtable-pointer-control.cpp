@@ -1,34 +1,62 @@
 // RUN: %clang_cc1 %s -x c++ -std=c++20 -triple arm64-apple-ios -fptrauth-calls -fptrauth-intrinsics \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,NODISC,DARWIN %s
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,NODISC,DARWIN %s -DIKEY=0 -DDKEY=2
 
 // RUN: %clang_cc1 %s -x c++ -std=c++20 -triple arm64-apple-ios   -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-type-discrimination \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,TYPE,DARWIN %s
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,TYPE,DARWIN %s -DIKEY=0 -DDKEY=2
 
 // RUN: %clang_cc1 %s -x c++ -std=c++20 -triple arm64-apple-ios   -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-address-discrimination \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,ADDR,DARWIN %s
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,ADDR,DARWIN %s -DIKEY=0 -DDKEY=2
 
 // RUN: %clang_cc1 %s -x c++ -std=c++20 -triple arm64-apple-ios   -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-type-discrimination \
 // RUN:   -fptrauth-vtable-pointer-address-discrimination \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH,DARWIN %s
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH,DARWIN %s -DIKEY=0 -DDKEY=2
 
 // RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,NODISC,LINUX %s
-
-// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics \
-// RUN:   -fptrauth-vtable-pointer-type-discrimination \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,TYPE,LINUX %s
-
-// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics \
-// RUN:   -fptrauth-vtable-pointer-address-discrimination \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,ADDR,LINUX %s
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,NODISC,LINUX %s -DIKEY=0 -DDKEY=2
 
 // RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,TYPE,LINUX %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics \
 // RUN:   -fptrauth-vtable-pointer-address-discrimination \
-// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH,LINUX %s
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,ADDR,LINUX %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-linux-gnu -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH,LINUX %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,NODISC %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,TYPE %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,ADDR %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefixes=CHECK,BOTH %s -DIKEY=0 -DDKEY=2
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -fptrauth-proc-ind-inst-key=ib -fptrauth-proc-ind-data-key=db \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefix=CHECK,BOTH,LINUX %s -DIKEY=1 -DDKEY=3
+
+// RUN: %clang_cc1 %s -x c++ -std=c++20 -triple aarch64-none-elf -fptrauth-calls -fptrauth-intrinsics \
+// RUN:   -fptrauth-vtable-pointer-type-discrimination \
+// RUN:   -fptrauth-vtable-pointer-address-discrimination \
+// RUN:   -fptrauth-proc-ind-inst-key=ib -fptrauth-proc-ind-data-key=da \
+// RUN:   -emit-llvm -o - | FileCheck --check-prefix=CHECK,BOTH,LINUX %s -DIKEY=1 -DDKEY=2
 
 #include <ptrauth.h>
 
@@ -79,10 +107,10 @@ struct authenticated(default_key, default_address_discrimination, custom_discrim
 };
 
 // CHECK: @_ZTVN5test19ConstEvalE = external constant { [3 x ptr] }, align 8
-// CHECK: @_ZN5test12ceE = global %{{.*}} { ptr ptrauth (ptr getelementptr inbounds inrange(-16, 8) (i8, ptr @_ZTVN5test19ConstEvalE, i64 16), i32 2, i64 0, ptr @_ZN5test12ceE) }, align 8
-// DARWIN: @_ZTVN5test116ConstEvalDerivedE = linkonce_odr unnamed_addr constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTIN5test116ConstEvalDerivedE, ptr ptrauth (ptr @_ZN5test19ConstEval1fEv, i32 0, i64 26259, ptr getelementptr inbounds (i8, ptr @_ZTVN5test116ConstEvalDerivedE, i64 16))] },{{.*}}align 8
-// LINUX: @_ZTVN5test116ConstEvalDerivedE = linkonce_odr constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTIN5test116ConstEvalDerivedE, ptr ptrauth (ptr @_ZN5test19ConstEval1fEv, i32 0, i64 26259, ptr getelementptr inbounds (i8, ptr @_ZTVN5test116ConstEvalDerivedE, i64 16))] },{{.*}}align 8
-// CHECK: @_ZN5test13cedE = global { ptr } { ptr ptrauth (ptr getelementptr inbounds inrange(-16, 8) (i8, ptr @_ZTVN5test116ConstEvalDerivedE, i64 16), i32 2, i64 0, ptr @_ZN5test13cedE) }, align 8
+// CHECK: @_ZN5test12ceE = global %{{.*}} { ptr ptrauth (ptr getelementptr inbounds inrange(-16, 8) (i8, ptr @_ZTVN5test19ConstEvalE, i64 16), i32 [[DKEY]], i64 0, ptr @_ZN5test12ceE) }, align 8
+// DARWIN: @_ZTVN5test116ConstEvalDerivedE = linkonce_odr unnamed_addr constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTIN5test116ConstEvalDerivedE, ptr ptrauth (ptr @_ZN5test19ConstEval1fEv, i32 [[IKEY]], i64 26259, ptr getelementptr inbounds (i8, ptr @_ZTVN5test116ConstEvalDerivedE, i64 16))] },{{.*}}align 8
+// LINUX: @_ZTVN5test116ConstEvalDerivedE = linkonce_odr constant { [3 x ptr] } { [3 x ptr] [ptr null, ptr @_ZTIN5test116ConstEvalDerivedE, ptr ptrauth (ptr @_ZN5test19ConstEval1fEv, i32 [[IKEY]], i64 26259, ptr getelementptr inbounds (i8, ptr @_ZTVN5test116ConstEvalDerivedE, i64 16))] },{{.*}}align 8
+// CHECK: @_ZN5test13cedE = global { ptr } { ptr ptrauth (ptr getelementptr inbounds inrange(-16, 8) (i8, ptr @_ZTVN5test116ConstEvalDerivedE, i64 16), i32 [[DKEY]], i64 0, ptr @_ZN5test13cedE) }, align 8
 
 struct authenticated(default_key, address_discrimination, no_extra_discrimination) ConstEval {
   consteval ConstEval() {}
@@ -154,19 +182,19 @@ int TVDisc_ExplicitTypeDiscrimination = ptrauth_string_discriminator("_ZTVN5test
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_DEFAULT]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_DEFAULT]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_DEFAULT]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_default(NoExplicitAuth *a) {
   a->f();
 }
@@ -185,21 +213,21 @@ void test_disabled(ExplicitlyDisableAuth *a) {
 //
 // NODISC:        [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // TYPE:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // TYPE:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_ADDR]])
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_ADDR]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_addr_disc(ExplicitAddressDiscrimination *a) {
   a->f();
 }
@@ -209,16 +237,16 @@ void test_addr_disc(ExplicitAddressDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_NO_ADDR]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_NO_ADDR]])
 //
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_NO_ADDR]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_NO_ADDR]])
 void test_no_addr_disc(ExplicitNoAddressDiscrimination *a) {
   a->f();
 }
@@ -228,18 +256,18 @@ void test_no_addr_disc(ExplicitNoAddressDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 void test_no_extra_disc(ExplicitNoExtraDiscrimination *a) {
   a->f();
 }
@@ -249,20 +277,20 @@ void test_no_extra_disc(ExplicitNoExtraDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_TYPE]])
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_TYPE]])
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_TYPE]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_TYPE]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_TYPE]])
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_TYPE]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_type_disc(ExplicitTypeDiscrimination *a) {
   a->f();
 }
@@ -272,20 +300,20 @@ void test_type_disc(ExplicitTypeDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_custom_disc(ExplicitCustomDiscrimination *a) {
   a->f();
 }
@@ -300,19 +328,19 @@ void test_custom_disc(ExplicitCustomDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_DEFAULT]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_DEFAULT]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_DEFAULT]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_subclass_default(NoExplicitAuth *a) {
   make_subclass(a)->f();
 }
@@ -331,21 +359,21 @@ void test_subclass_disabled(ExplicitlyDisableAuth *a) {
 //
 // NODISC:        [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // TYPE:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // TYPE:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_ADDR]])
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_ADDR]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_subclass_addr_disc(ExplicitAddressDiscrimination *a) {
   make_subclass(a)->f();
 }
@@ -355,16 +383,16 @@ void test_subclass_addr_disc(ExplicitAddressDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_NO_ADDR]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_NO_ADDR]])
 //
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_NO_ADDR]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_NO_ADDR]])
 void test_subclass_no_addr_disc(ExplicitNoAddressDiscrimination *a) {
   make_subclass(a)->f();
 }
@@ -374,18 +402,18 @@ void test_subclass_no_addr_disc(ExplicitNoAddressDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 void test_subclass_no_extra_disc(ExplicitNoExtraDiscrimination *a) {
   make_subclass(a)->f();
 }
@@ -395,20 +423,20 @@ void test_subclass_no_extra_disc(ExplicitNoExtraDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_TYPE]])
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_TYPE]])
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_TYPE]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_TYPE]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_TYPE]])
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_TYPE]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_subclass_type_disc(ExplicitTypeDiscrimination *a) {
   make_subclass(a)->f();
 }
@@ -418,20 +446,20 @@ void test_subclass_type_disc(ExplicitTypeDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_subclass_custom_disc(ExplicitCustomDiscrimination *a) {
   make_subclass(a)->f();
 }
@@ -448,19 +476,19 @@ void test_subclass_custom_disc(ExplicitCustomDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_DEFAULT]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_DEFAULT]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_DEFAULT]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_multiple_default(NoExplicitAuth *a) {
   make_multiple_primary(a)->f();
 }
@@ -480,20 +508,20 @@ void test_multiple_disabled(ExplicitlyDisableAuth *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_multiple_custom_disc(ExplicitCustomDiscrimination *a) {
   make_multiple_primary(a)->f();
 }
@@ -509,19 +537,19 @@ void test_multiple_custom_disc(ExplicitCustomDiscrimination *a) {
 // CHECK:         [[VTTABLE:%.*]] = load ptr, ptr [[VTTADDR]], align 8
 //
 // NODISC:        [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 [[DISC_DEFAULT]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 [[DISC_DEFAULT]])
 //
 // ADDR:          [[VTTADDRI64:%.*]] = ptrtoint ptr [[VTTADDR]] to i64
 // ADDR:          [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 [[VTTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 [[VTTADDRI64]])
 //
 // BOTH:          [[VTTADDRI64:%.*]] = ptrtoint ptr [[VTTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTTADDRI64]], i64 [[DISC_DEFAULT]])
 // BOTH:          [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 
 // CHECK:         [[AUTHEDPTR:%.*]] = inttoptr i64 [[AUTHED]] to ptr
 // CHECK:         [[VBOFFPTR:%.*]] = getelementptr i8, ptr [[AUTHEDPTR]], i64 -48
@@ -530,19 +558,19 @@ void test_multiple_custom_disc(ExplicitCustomDiscrimination *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 0)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 0)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[DISC_DEFAULT]])
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[DISC_DEFAULT]])
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[VTADDRI64]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[VTADDRI64]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 [[DISC_DEFAULT]])
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_virtual_default(NoExplicitAuth *a) {
   make_virtual_primary(a)->f();
 }
@@ -558,20 +586,20 @@ void test_virtual_disabled(ExplicitlyDisableAuth *a) {
 // CHECK:         [[VTTABLE:%.*]] = load ptr, ptr [[VTTADDR]], align 8
 //
 // NODISC:        [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 42424)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // TYPE:          [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 42424)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // ADDR:          [[VTTADDRI64:%.*]] = ptrtoint ptr [[VTTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTTADDRI64]], i64 42424)
 // ADDR:          [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTTADDRI64:%.*]] = ptrtoint ptr [[VTTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTTADDRI64]], i64 42424)
 // BOTH:          [[VTTABLEI64:%.*]] = ptrtoint ptr [[VTTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 
 // CHECK:         [[AUTHEDPTR:%.*]] = inttoptr i64 [[AUTHED]] to ptr
 // CHECK:         [[VBOFFPTR:%.*]] = getelementptr i8, ptr [[AUTHEDPTR]], i64 -48
@@ -580,20 +608,20 @@ void test_virtual_disabled(ExplicitlyDisableAuth *a) {
 // CHECK:         [[VTABLE:%.*]] = load ptr, ptr [[VTADDR]], align 8
 //
 // NODISC:        [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// NODISC:        [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // TYPE:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 42424)
+// TYPE:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 42424)
 //
 // ADDR:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // ADDR:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // ADDR:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// ADDR:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 //
 // BOTH:          [[VTADDRI64:%.*]] = ptrtoint ptr [[VTADDR]] to i64
 // BOTH:          [[BLEND:%.*]] = call i64 @llvm.ptrauth.blend(i64 [[VTADDRI64]], i64 42424)
 // BOTH:          [[VTABLEI64:%.*]] = ptrtoint ptr [[VTABLE]] to i64
-// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 2, i64 [[BLEND]])
+// BOTH:          [[AUTHED:%.*]] = call i64 @llvm.ptrauth.auth(i64 [[VTABLEI64]], i32 [[DKEY]], i64 [[BLEND]])
 void test_virtual_custom_disc(ExplicitCustomDiscrimination *a) {
   make_virtual_primary(a)->f();
 }

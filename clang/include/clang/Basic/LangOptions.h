@@ -327,6 +327,20 @@ public:
     LoadReturnAddress
   };
 
+  enum class PointerAuthInstKeyKind {
+    /// Instruction key uses APIA key.
+    IA = 0,
+    /// Instruction key uses APBA key.
+    IB = 1
+  };
+
+  enum class PointerAuthDataKeyKind {
+    /// Data key uses APDA key.
+    DA = 2,
+    /// Data key uses APDB key.
+    DB = 3
+  };
+
   enum class ThreadModelKind {
     /// POSIX Threads.
     POSIX,

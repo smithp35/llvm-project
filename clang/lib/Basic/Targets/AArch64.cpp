@@ -13,6 +13,7 @@
 #include "AArch64.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/PointerAuthOptions.h"
 #include "clang/Basic/TargetBuiltins.h"
 #include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/APSInt.h"
@@ -819,6 +820,33 @@ void AArch64TargetInfo::getTargetDefines(const LangOptions &Opts,
   if (Opts.VScaleMin && Opts.VScaleMin == Opts.VScaleMax) {
     Builder.defineMacro("__ARM_FEATURE_SVE_BITS", Twine(Opts.VScaleMin * 128));
   }
+
+  // Used to defined the ptrauth_key_process* keys in ptrauth.h.
+  const char *KeyStr[] = {"ptrauth_key_asia", "ptrauth_key_asib",
+                          "ptrauth_key_asda", "ptrauth_key_asdb"};
+  Builder.defineMacro(
+      "__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_CODE",
+      KeyStr[(unsigned)Opts.getPointerAuthProcIndInstKey()]);
+  Builder.defineMacro(
+      "__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE",
+      KeyStr[(unsigned)Opts.getPointerAuthProcDepInstKey()]);
+  Builder.defineMacro(
+      "__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_DATA",
+      KeyStr[(unsigned)Opts.getPointerAuthProcIndDataKey()]);
+  Builder.defineMacro(
+      "__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_DATA",
+      KeyStr[(unsigned)Opts.getPointerAuthProcDepDataKey()]);
+  // For assembly code, like that in libunwind that needs to choose between
+  // instructions that use A or B key.
+  const char *KeyValStr[] = { "0", "1", "2", "3" };
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_CODE_VAL",
+                      KeyValStr[(unsigned)Opts.getPointerAuthProcIndInstKey()]);
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE_VAL",
+                      KeyValStr[(unsigned)Opts.getPointerAuthProcDepInstKey()]);
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_DATA_VAL",
+                      KeyValStr[(unsigned)Opts.getPointerAuthProcIndDataKey()]);
+  Builder.defineMacro("__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_DATA_VAL",
+                      KeyValStr[(unsigned)Opts.getPointerAuthProcDepDataKey()]);
 }
 
 llvm::SmallVector<Builtin::InfosShard>

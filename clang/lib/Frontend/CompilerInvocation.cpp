@@ -1477,67 +1477,74 @@ void CompilerInvocation::setDefaultPointerAuthOptions(
   if (LangOpts.PointerAuthCalls) {
     using Key = PointerAuthSchema::ARM8_3Key;
     using Discrimination = PointerAuthSchema::Discrimination;
+
+    Key Keys[] = {Key::ASIA, Key::ASIB, Key::ASDA, Key::ASDB};
+    Key ProcIndInstKey =
+        Keys[(unsigned)LangOpts.getPointerAuthProcIndInstKey()];
+    Key ProcIndDataKey =
+        Keys[(unsigned)LangOpts.getPointerAuthProcIndDataKey()];
+
     // If you change anything here, be sure to update <ptrauth.h>.
     Opts.FunctionPointers = PointerAuthSchema(
-        Key::ASIA, false,
+        ProcIndInstKey, false,
         LangOpts.PointerAuthFunctionTypeDiscrimination ? Discrimination::Type
                                                        : Discrimination::None);
 
     Opts.CXXVTablePointers = PointerAuthSchema(
-        Key::ASDA, LangOpts.PointerAuthVTPtrAddressDiscrimination,
+        ProcIndDataKey, LangOpts.PointerAuthVTPtrAddressDiscrimination,
         LangOpts.PointerAuthVTPtrTypeDiscrimination ? Discrimination::Type
                                                     : Discrimination::None);
 
     if (LangOpts.PointerAuthTypeInfoVTPtrDiscrimination)
       Opts.CXXTypeInfoVTablePointer =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(ProcIndDataKey, true, Discrimination::Constant,
                             StdTypeInfoVTablePointerConstantDiscrimination);
     else
       Opts.CXXTypeInfoVTablePointer =
-          PointerAuthSchema(Key::ASDA, false, Discrimination::None);
+          PointerAuthSchema(ProcIndDataKey, false, Discrimination::None);
 
     if (LangOpts.PointerAuthVTTVTPtrDiscrimination)
       Opts.CXXVTTVTablePointers = PointerAuthSchema(
-          Key::ASDA, LangOpts.PointerAuthVTPtrAddressDiscrimination,
+          ProcIndDataKey, LangOpts.PointerAuthVTPtrAddressDiscrimination,
           LangOpts.PointerAuthVTPtrTypeDiscrimination ? Discrimination::Type
                                                       : Discrimination::None);
     else
       Opts.CXXVTTVTablePointers =
-          PointerAuthSchema(Key::ASDA, false, Discrimination::None);
+          PointerAuthSchema(ProcIndDataKey, false, Discrimination::None);
 
     Opts.CXXVirtualFunctionPointers = Opts.CXXVirtualVariadicFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::Decl);
+        PointerAuthSchema(ProcIndInstKey, true, Discrimination::Decl);
     Opts.CXXMemberFunctionPointers =
-        PointerAuthSchema(Key::ASIA, false, Discrimination::Type);
+        PointerAuthSchema(ProcIndInstKey, false, Discrimination::Type);
 
     Opts.BlockInvocationFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(ProcIndInstKey, true, Discrimination::None);
     Opts.BlockHelperFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(ProcIndInstKey, true, Discrimination::None);
     Opts.BlockByrefHelperFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(ProcIndInstKey, true, Discrimination::None);
     if (LangOpts.PointerAuthBlockDescriptorPointers)
       Opts.BlockDescriptorPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(ProcIndDataKey, true, Discrimination::Constant,
                             BlockDescriptorConstantDiscriminator);
 
     Opts.ObjCMethodListFunctionPointers =
-        PointerAuthSchema(Key::ASIA, true, Discrimination::None);
+        PointerAuthSchema(ProcIndInstKey, true, Discrimination::None);
     Opts.ObjCMethodListPointer =
-        PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+        PointerAuthSchema(ProcIndDataKey, true, Discrimination::Constant,
                           MethodListPointerConstantDiscriminator);
     if (LangOpts.PointerAuthObjcIsa) {
       Opts.ObjCIsaPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(ProcIndDataKey, true, Discrimination::Constant,
                             IsaPointerConstantDiscriminator);
       Opts.ObjCSuperPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(ProcIndDataKey, true, Discrimination::Constant,
                             SuperPointerConstantDiscriminator);
     }
 
     if (LangOpts.PointerAuthObjcClassROPointers)
       Opts.ObjCClassROPointers =
-          PointerAuthSchema(Key::ASDA, true, Discrimination::Constant,
+          PointerAuthSchema(ProcIndDataKey, true, Discrimination::Constant,
                             ClassROConstantDiscriminator);
   }
   Opts.ReturnAddresses = LangOpts.PointerAuthReturns;

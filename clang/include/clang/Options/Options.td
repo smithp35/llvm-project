@@ -5197,6 +5197,34 @@ defm ptrauth_objc_isa : OptInCC1FFlag<"ptrauth-objc-isa", "Enable signing and au
 defm ptrauth_objc_interface_sel : OptInCC1FFlag<"ptrauth-objc-interface-sel", "Enable signing and authentication of Objective-C object's 'SEL' fields">;
 defm ptrauth_objc_class_ro : OptInCC1FFlag<"ptrauth-objc-class-ro", "Enable signing and authentication for ObjC class_ro pointers">;
 defm ptrauth_block_descriptor_pointers : OptInCC1FFlag<"ptrauth-block-descriptor-pointers", "Enable signing and authentication of block descriptors">;
+def ptrauth_proc_ind_inst_key_EQ : Joined<["-"], "fptrauth-proc-ind-inst-key=">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Specify value of process independent instruction key">,
+  Values<"ia,ib">,
+  NormalizedValuesScope<"LangOptions::PointerAuthInstKeyKind">,
+  NormalizedValues<["IA", "IB"]>,
+  MarshallingInfoEnum<LangOpts<"PointerAuthProcIndInstKey">, "IA">;
+def ptrauth_proc_ind_data_key_EQ : Joined<["-"], "fptrauth-proc-ind-data-key=">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Specify value of process independent data key">,
+  Values<"da,db">,
+  NormalizedValuesScope<"LangOptions::PointerAuthDataKeyKind">,
+  NormalizedValues<["DA", "DB"]>,
+  MarshallingInfoEnum<LangOpts<"PointerAuthProcIndDataKey">, "DA">;
+def ptrauth_proc_dep_inst_key_EQ : Joined<["-"], "fptrauth-proc-dep-inst-key=">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Specify value of process dependent instruction key">,
+  Values<"ia,ib">,
+  NormalizedValuesScope<"LangOptions::PointerAuthInstKeyKind">,
+  NormalizedValues<["IA", "IB"]>,
+  MarshallingInfoEnum<LangOpts<"PointerAuthProcDepInstKey">, "IB">;
+def ptrauth_proc_dep_data_key_EQ : Joined<["-"], "fptrauth-proc-dep-data-key=">, Group<f_Group>,
+  Visibility<[ClangOption, CC1Option]>,
+  HelpText<"Specify value of process dependent data key">,
+  Values<"da,db">,
+  NormalizedValuesScope<"LangOptions::PointerAuthDataKeyKind">,
+  NormalizedValues<["DA", "DB"]>,
+  MarshallingInfoEnum<LangOpts<"PointerAuthProcDepDataKey">, "DB">;
 }
 
 def fenable_matrix : Flag<["-"], "fenable-matrix">, Group<f_Group>,

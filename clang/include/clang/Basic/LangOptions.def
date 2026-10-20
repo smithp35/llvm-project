@@ -143,6 +143,11 @@ LANGOPT(PointerAuthObjcClassROPointers, 1, 0, Benign, "class_ro_t pointer authen
 
 LANGOPT(PointerAuthBlockDescriptorPointers, 1, 0, NotCompatible, "enable signed block descriptors")
 
+ENUM_LANGOPT(PointerAuthProcIndInstKey, PointerAuthInstKeyKind, 2, PointerAuthInstKeyKind::IA, NotCompatible, "Key for process independent instruction key")
+ENUM_LANGOPT(PointerAuthProcIndDataKey, PointerAuthDataKeyKind, 2, PointerAuthDataKeyKind::DA, NotCompatible, "Key for process independent data key")
+ENUM_LANGOPT(PointerAuthProcDepInstKey, PointerAuthInstKeyKind, 2, PointerAuthInstKeyKind::IB, NotCompatible, "Key for process independent instruction key")
+ENUM_LANGOPT(PointerAuthProcDepDataKey, PointerAuthDataKeyKind, 2, PointerAuthDataKeyKind::DB, NotCompatible, "Key for process independent data key")
+
 LANGOPT(DoubleSquareBracketAttributes, 1, 0, NotCompatible, "'[[]]' attributes extension for all language standard modes")
 LANGOPT(ExperimentalLateParseAttributes, 1, 0, NotCompatible, "experimental late parsing of attributes")
 
