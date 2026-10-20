@@ -606,11 +606,11 @@ CodeGenModule::computeVTPointerAuthentication(const CXXRecordDecl *ThisClass,
 
     if (ExplicitKey != VTablePointerAuthenticationAttr::DefaultKey) {
       if (ExplicitKey == VTablePointerAuthenticationAttr::ProcessIndependent)
-        Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDA;
+        Key = (unsigned)getLangOpts().getPointerAuthProcIndDataKey();
       else {
         assert(ExplicitKey ==
                VTablePointerAuthenticationAttr::ProcessDependent);
-        Key = (unsigned)PointerAuthSchema::ARM8_3Key::ASDB;
+        Key = (unsigned)getLangOpts().getPointerAuthProcDepDataKey();
       }
     }
 

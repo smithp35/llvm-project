@@ -17,16 +17,16 @@ typedef enum {
   ptrauth_key_asdb = 3,
 
   /* A process-independent key which can be used to sign code pointers. */
-  ptrauth_key_process_independent_code = ptrauth_key_asia,
+  ptrauth_key_process_independent_code = __ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_CODE,
 
   /* A process-specific key which can be used to sign code pointers. */
-  ptrauth_key_process_dependent_code = ptrauth_key_asib,
+  ptrauth_key_process_dependent_code = __ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE,
 
   /* A process-independent key which can be used to sign data pointers. */
-  ptrauth_key_process_independent_data = ptrauth_key_asda,
+  ptrauth_key_process_independent_data = __ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_DATA,
 
   /* A process-specific key which can be used to sign data pointers. */
-  ptrauth_key_process_dependent_data = ptrauth_key_asdb,
+  ptrauth_key_process_dependent_data = __ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_DATA,
 
   /* The key used to sign return addresses on the stack.
      The extra data is based on the storage address of the return address.
