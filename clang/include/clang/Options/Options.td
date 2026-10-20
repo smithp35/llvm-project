@@ -5172,6 +5172,21 @@ defm strict_return : BoolFOption<"strict-return",
   PosFlag<SetTrue>>;
 
 let Flags = [TargetSpecific] in {
+def pauthabi_profile_EQ : Joined<["-"], "mpauthabi-profile=">,
+  Group<m_Group>,
+  HelpText<"Select the Pointer Authentication ABI (PAuthABI) Profile for this program">;
+def pauthabi_platform_EQ : Joined<["-"], "mpauthabi-platform=">,
+  Group<m_Group>, Visibility<[ClangOption, CC1Option]>,
+  MetaVarName<"N">,
+  HelpText<"Set the ELF PAuthABI platform identifier number">;
+def pauthabi_version_EQ : Joined<["-"], "mpauthabi-version=">,
+  Group<m_Group>, Visibility<[ClangOption, CC1Option]>,
+  MetaVarName<"N">,
+  HelpText<"Set the ELF PAuthABI platform version number">;
+def pauthabi_profile_version_EQ : Joined<["-"], "mpauthabi-profile-version=">,
+  Group<m_Group>, Visibility<[ClangOption]>,
+  MetaVarName<"N">,
+  HelpText<"Set the ELF PAuthABI profile version number, must be in range [0-255]">;
 defm ptrauth_intrinsics : OptInCC1FFlag<"ptrauth-intrinsics", "Enable pointer authentication intrinsics">;
 defm ptrauth_calls : OptInCC1FFlag<"ptrauth-calls", "Enable signing and authentication of all indirect calls">;
 defm ptrauth_returns : OptInCC1FFlag<"ptrauth-returns", "Enable signing and authentication of return addresses">;
