@@ -380,6 +380,12 @@ a number of different tests.
   for the `__PTRAUTH__` macro definition. Use of these features should be
   restricted to cases where backwards compatibility is required, and should be
   paired with `defined(__PTRAUTH__)`.
+- For interrogating the value of the keys the macros
+  `__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_CODE_VAL`,
+  `__ARM_PTRAUTH_KEY_PROCESS_INDEPENDENT_DATA_VAL`,
+  `__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_CODE_VAL`,
+  `__ARM_PTRAUTH_KEY_PROCESS_DEPENDENT_DATA_VAL` are defined. The
+  values are the same as the enum defined in `<ptrauth.h>`.
 
 Clang provides several other tests only for historical purposes; for current
 purposes they are all equivalent to `ptrauth_calls`.
