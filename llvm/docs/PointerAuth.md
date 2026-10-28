@@ -415,3 +415,9 @@ pointer authentication on ELF platforms.
   combination with `ptrauth-init-fini`, it determines whether address
   diversity is used in the discriminator for the pointers in the .init
   and .fini array.
+* `ptrauth-keys` is a string that sets values for the 4 keys used by
+  pointer authentication. The string has the format "iAdBiCdD" where
+  A, B, C and D are either a or b. The keys are specified in the order
+  process-independent code, process-independent data,
+  process-dependent code, process-dependent data. A string that
+  represents the default keys is "iadaibdb".
